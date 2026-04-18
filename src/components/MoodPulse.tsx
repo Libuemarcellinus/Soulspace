@@ -2,18 +2,14 @@ import { motion } from 'motion/react';
 import { ArrowLeft, TrendingUp, TrendingDown, Activity, Ghost, Compass, User } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { useApi } from '../hooks/useApi';
+import { soulsApi } from '../lib/api';
+import { mockMoodAverage, mapMoodAverage } from '../lib/mockData';
+import ReconnectingBanner from './ReconnectingBanner';
 
 interface MoodPulseProps {
   navigateTo: (screen: string) => void;
 }
-
-const globalMoods = [
-  { mood: 'Hopeful', percentage: 32, trend: 'up', color: 'bg-emerald-500', textColor: 'text-emerald-400' },
-  { mood: 'Anxious', percentage: 24, trend: 'down', color: 'bg-purple-500', textColor: 'text-purple-400' },
-  { mood: 'Grateful', percentage: 18, trend: 'up', color: 'bg-pink-500', textColor: 'text-pink-400' },
-  { mood: 'Overwhelmed', percentage: 15, trend: 'same', color: 'bg-blue-500', textColor: 'text-blue-400' },
-  { mood: 'Lonely', percentage: 11, trend: 'down', color: 'bg-indigo-500', textColor: 'text-indigo-400' },
-];
 
 const timeData = [
   { time: '12am', anxiety: 45, hope: 20, lonely: 35 },
@@ -27,8 +23,15 @@ const timeData = [
 ];
 
 export default function MoodPulse({ navigateTo }: MoodPulseProps) {
+  const { data: rawAverage, isLoading, error } = useApi(() => soulsApi.getAverage(), []);
+  const isFallback = !isLoading && error !== null;
+  const globalMoods = mapMoodAverage(rawAverage ?? (isFallback ? mockMoodAverage : {}));
+  const dominantMood = globalMoods[0]?.mood ?? 'Hopeful';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 pb-24">
+      <ReconnectingBanner show={isFallback} />
+
       {/* Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -80,11 +83,15 @@ export default function MoodPulse({ navigateTo }: MoodPulseProps) {
             </div>
             <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
               <Activity className="w-3 h-3 mr-1" />
-              84.2k souls active
+              Live
             </Badge>
           </div>
           <div className="text-center">
-            <div className="text-4xl text-slate-100 mb-2">Hopeful</div>
+            <div className="text-4xl text-slate-100 mb-2">
+              {isLoading && !isFallback ? (
+                <div className="h-10 w-32 bg-slate-700 rounded animate-pulse mx-auto" />
+              ) : dominantMood}
+            </div>
             <p className="text-slate-400">is the dominant emotion right now</p>
           </div>
         </motion.div>
@@ -97,33 +104,47 @@ export default function MoodPulse({ navigateTo }: MoodPulseProps) {
           className="mb-6"
         >
           <h3 className="text-slate-300 mb-4">Current Distribution</h3>
-          <div className="space-y-4">
-            {globalMoods.map((item, index) => (
-              <motion.div
-                key={item.mood}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 + index * 0.05 }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-200">{item.mood}</span>
-                    {item.trend === 'up' && <TrendingUp className="w-4 h-4 text-emerald-400" />}
-                    {item.trend === 'down' && <TrendingDown className="w-4 h-4 text-red-400" />}
+          {isLoading && !isFallback ? (
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-20 h-4 bg-slate-700 rounded" />
+                    <div className="w-8 h-4 bg-slate-700 rounded" />
                   </div>
-                  <span className={item.textColor}>{item.percentage}%</span>
+                  <div className="h-2 bg-slate-800/40 rounded-full" />
                 </div>
-                <div className="h-2 bg-slate-800/40 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${item.percentage}%` }}
-                    transition={{ delay: 0.5 + index * 0.1, duration: 0.8 }}
-                    className={`h-full ${item.color} rounded-full`}
-                  />
-                </div>
-              </motion.div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {globalMoods.map((item, index) => (
+                <motion.div
+                  key={item.mood}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 + index * 0.05 }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-200">{item.mood}</span>
+                      {item.trend === 'up' && <TrendingUp className="w-4 h-4 text-emerald-400" />}
+                      {item.trend === 'down' && <TrendingDown className="w-4 h-4 text-red-400" />}
+                    </div>
+                    <span className={item.textColor}>{item.percentage}%</span>
+                  </div>
+                  <div className="h-2 bg-slate-800/40 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${item.percentage}%` }}
+                      transition={{ delay: 0.5 + index * 0.1, duration: 0.8 }}
+                      className={`h-full ${item.color} rounded-full`}
+                    />
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </motion.div>
 
         {/* 24-Hour Trends */}

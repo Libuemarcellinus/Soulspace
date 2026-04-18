@@ -3,73 +3,64 @@ import { motion } from 'motion/react';
 import { Ghost, Plus, Compass, User, TrendingUp, MessageCircle, Heart, Clock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { useApi } from '../hooks/useApi';
+import { soulsApi } from '../lib/api';
+import { mockSouls, mapApiSoul } from '../lib/mockData';
+import ReconnectingBanner from './ReconnectingBanner';
 
 interface HomeFeedProps {
   navigateTo: (screen: string, data?: any) => void;
 }
 
-const mockPosts = [
-  {
-    id: 1,
-    mood: 'anxious',
-    moodColor: 'text-purple-400',
-    content: "Sometimes I feel like I'm screaming into a void, but knowing someone might hear me here makes it easier to breathe.",
-    timestamp: '2m ago',
-    empathy: 47,
-    replies: 12,
-    expiresIn: '22h'
-  },
-  {
-    id: 2,
-    mood: 'hopeful',
-    moodColor: 'text-emerald-400',
-    content: "Today I smiled at a stranger and they smiled back. Small victories matter.",
-    timestamp: '15m ago',
-    empathy: 124,
-    replies: 8,
-    expiresIn: '21h'
-  },
-  {
-    id: 3,
-    mood: 'overwhelmed',
-    moodColor: 'text-blue-400',
-    content: "The weight of everyone's expectations feels like carrying an ocean. I just need someone to know I'm trying my best.",
-    timestamp: '1h ago',
-    empathy: 89,
-    replies: 23,
-    expiresIn: '18h'
-  },
-  {
-    id: 4,
-    mood: 'grateful',
-    moodColor: 'text-pink-400',
-    content: "Whoever posted about finding peace in small moments yesterday - thank you. I tried it and it helped.",
-    timestamp: '3h ago',
-    empathy: 156,
-    replies: 19,
-    expiresIn: '15h'
-  },
-  {
-    id: 5,
-    mood: 'lonely',
-    moodColor: 'text-indigo-400',
-    content: "Is it possible to be surrounded by people and still feel invisible?",
-    timestamp: '5h ago',
-    empathy: 203,
-    replies: 34,
-    expiresIn: '12h'
-  }
-];
+function PostSkeleton() {
+  return (
+    <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-3xl p-6 animate-pulse">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 bg-slate-700 rounded-full" />
+          <div className="w-16 h-5 bg-slate-700 rounded-full" />
+        </div>
+        <div className="w-12 h-4 bg-slate-700 rounded-full" />
+      </div>
+      <div className="space-y-2 mb-4">
+        <div className="w-full h-4 bg-slate-700 rounded" />
+        <div className="w-4/5 h-4 bg-slate-700 rounded" />
+        <div className="w-3/5 h-4 bg-slate-700 rounded" />
+      </div>
+      <div className="h-1 bg-slate-700 rounded-full mb-4" />
+      <div className="flex gap-6">
+        <div className="w-12 h-5 bg-slate-700 rounded" />
+        <div className="w-12 h-5 bg-slate-700 rounded" />
+      </div>
+    </div>
+  );
+}
 
 export default function HomeFeed({ navigateTo }: HomeFeedProps) {
-  const [expandedPost, setExpandedPost] = useState<number | null>(null);
+  const { data: rawSouls, isLoading, error } = useApi(() => soulsApi.getActive(), []);
+  const isFallback = !isLoading && error !== null;
+  const soulsArray = Array.isArray(rawSouls) ? rawSouls : null;
+  const apiPosts = (soulsArray ?? (isFallback ? mockSouls : [])).map(mapApiSoul);
 
-  const handleEmpathy = (postId: number) => {
-    // Animation feedback only
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [localEmpathy, setLocalEmpathy] = useState<Record<string, number>>({});
+
+  const handleEmpathy = async (postId: string, currentCount: number) => {
+    if (likedPosts.has(postId)) return;
+    setLikedPosts(prev => new Set(prev).add(postId));
+    setLocalEmpathy(prev => ({ ...prev, [postId]: currentCount + 1 }));
+    try {
+      await soulsApi.like(postId);
+    } catch {
+      setLikedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
+      setLocalEmpathy(prev => ({ ...prev, [postId]: currentCount }));
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 pb-24">
+      <ReconnectingBanner show={isFallback} />
+
       {/* Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -80,10 +71,10 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <motion.div
-                animate={{ 
+                animate={{
                   opacity: [0.7, 1, 0.7],
                 }}
-                transition={{ 
+                transition={{
                   duration: 3,
                   repeat: Infinity,
                   ease: 'easeInOut'
@@ -130,71 +121,88 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
 
       {/* Feed */}
       <div className="max-w-2xl mx-auto px-4 mt-6 space-y-4">
-        {mockPosts.map((post, index) => (
-          <motion.div
-            key={post.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 + index * 0.1 }}
-            className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-3xl p-6 hover:border-slate-600/50 transition-all cursor-pointer"
-            onClick={() => navigateTo('post-detail', { post })}
-          >
-            {/* Post Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Ghost className={`w-4 h-4 ${post.moodColor}`} />
-                <Badge variant="outline" className={`${post.moodColor} border-current/30 bg-current/10`}>
-                  {post.mood}
-                </Badge>
+        {isLoading && !isFallback ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 + i * 0.1 }}
+            >
+              <PostSkeleton />
+            </motion.div>
+          ))
+        ) : (
+          apiPosts.map((post, index) => (
+            <motion.div
+              key={post.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 + index * 0.1 }}
+              className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-3xl p-6 hover:border-slate-600/50 transition-all cursor-pointer"
+              onClick={() => navigateTo('post-detail', { post })}
+            >
+              {/* Post Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Ghost className={`w-4 h-4 ${post.moodColor}`} />
+                  <Badge variant="outline" className={`${post.moodColor} border-current/30 bg-current/10`}>
+                    {post.mood}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 text-slate-500 text-sm">
+                  <Clock className="w-3 h-3" />
+                  <span>{post.timestamp}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-slate-500 text-sm">
-                <Clock className="w-3 h-3" />
-                <span>{post.timestamp}</span>
+
+              {/* Content */}
+              <p className="text-slate-200 leading-relaxed mb-4">{post.content}</p>
+
+              {/* Expiration Timer */}
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex-1 h-1 bg-slate-700/50 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                    initial={{ width: '100%' }}
+                    animate={{ width: '60%' }}
+                    transition={{ duration: 2 }}
+                  />
+                </div>
+                <span className="text-slate-500 text-xs">expires in {post.expiresIn}</span>
               </div>
-            </div>
 
-            {/* Content */}
-            <p className="text-slate-200 leading-relaxed mb-4">{post.content}</p>
-
-            {/* Expiration Timer */}
-            <div className="flex items-center gap-2 mb-4">
-              <div className="flex-1 h-1 bg-slate-700/50 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
-                  initial={{ width: '100%' }}
-                  animate={{ width: '60%' }}
-                  transition={{ duration: 2 }}
-                />
+              {/* Actions */}
+              <div className="flex items-center gap-6">
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEmpathy(post.id, localEmpathy[post.id] ?? post.empathy);
+                  }}
+                  className={`flex items-center gap-2 transition-colors ${
+                    likedPosts.has(post.id)
+                      ? 'text-pink-400'
+                      : 'text-slate-400 hover:text-pink-400'
+                  }`}
+                >
+                  <Heart className="w-5 h-5" />
+                  <span>{localEmpathy[post.id] ?? post.empathy}</span>
+                </motion.button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigateTo('reply', { post });
+                  }}
+                  className="flex items-center gap-2 text-slate-400 hover:text-purple-400 transition-colors"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  <span>{post.replies}</span>
+                </button>
               </div>
-              <span className="text-slate-500 text-xs">expires in {post.expiresIn}</span>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-6">
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEmpathy(post.id);
-                }}
-                className="flex items-center gap-2 text-slate-400 hover:text-pink-400 transition-colors"
-              >
-                <Heart className="w-5 h-5" />
-                <span>{post.empathy}</span>
-              </motion.button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigateTo('reply', { post });
-                }}
-                className="flex items-center gap-2 text-slate-400 hover:text-purple-400 transition-colors"
-              >
-                <MessageCircle className="w-5 h-5" />
-                <span>{post.replies}</span>
-              </button>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))
+        )}
       </div>
 
       {/* Floating Action Button */}

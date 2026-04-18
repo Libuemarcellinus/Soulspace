@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Send, Sparkles, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
+import { toast } from 'sonner';
+import { dailyApi } from '../lib/api';
 
 interface DailyUnloadProps {
   navigateTo: (screen: string) => void;
 }
 
-const prompts = [
+const localPrompts = [
   "What's weighing on your soul today?",
   "If you could tell the world one thing without judgment, what would it be?",
   "What emotion are you tired of carrying?",
@@ -19,17 +21,60 @@ const prompts = [
 ];
 
 export default function DailyUnload({ navigateTo }: DailyUnloadProps) {
-  const [currentPrompt, setCurrentPrompt] = useState(prompts[0]);
+  const [promptId, setPromptId] = useState<string | null>(null);
+  const [currentPrompt, setCurrentPrompt] = useState(localPrompts[0]);
   const [response, setResponse] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    dailyApi.getPrompt()
+      .then((data) => {
+        setPromptId(data.id);
+        setCurrentPrompt(data.prompt);
+      })
+      .catch(() => {
+        // daily/prompt not available — use local prompts
+        setCurrentPrompt(localPrompts[Math.floor(Math.random() * localPrompts.length)]);
+      });
+  }, []);
 
   const getNewPrompt = () => {
-    const newPrompt = prompts[Math.floor(Math.random() * prompts.length)];
-    setCurrentPrompt(newPrompt);
+    if (promptId) {
+      dailyApi.getPrompt()
+        .then((data) => {
+          setPromptId(data.id);
+          setCurrentPrompt(data.prompt);
+        })
+        .catch(() => {
+          setCurrentPrompt(localPrompts[Math.floor(Math.random() * localPrompts.length)]);
+        });
+    } else {
+      setCurrentPrompt(localPrompts[Math.floor(Math.random() * localPrompts.length)]);
+    }
   };
 
-  const handleSubmit = () => {
-    // Simulate posting
-    setTimeout(() => navigateTo('home'), 500);
+  const handleSave = () => {
+    navigateTo('home');
+  };
+
+  const handleShare = async () => {
+    if (!response.trim()) return;
+    setIsSubmitting(true);
+    try {
+      await dailyApi.submit(promptId ?? 'local', response.trim(), 'public');
+      navigateTo('home');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (/404|not found/i.test(msg)) {
+        toast('This feature is coming soon', {
+          description: 'Daily submissions aren\'t available yet. Check back later.',
+        });
+      } else {
+        navigateTo('home');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -126,18 +171,18 @@ export default function DailyUnload({ navigateTo }: DailyUnloadProps) {
         >
           <Button
             variant="outline"
-            onClick={() => navigateTo('home')}
+            onClick={handleSave}
             className="flex-1 border-slate-600 text-slate-400 hover:text-slate-200"
           >
             Save Privately
           </Button>
           <Button
-            onClick={handleSubmit}
-            disabled={!response.trim()}
+            onClick={handleShare}
+            disabled={!response.trim() || isSubmitting}
             className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50"
           >
             <Send className="w-4 h-4 mr-2" />
-            Share with Souls
+            {isSubmitting ? 'Sharing…' : 'Share with Souls'}
           </Button>
         </motion.div>
 
@@ -149,20 +194,8 @@ export default function DailyUnload({ navigateTo }: DailyUnloadProps) {
           className="mt-6 p-4 bg-slate-800/20 border border-slate-700/30 rounded-2xl"
         >
           <p className="text-slate-400 text-sm text-center">
-            Your daily unload helps you process emotions and connect with others who understand. 
+            Your daily unload helps you process emotions and connect with others who understand.
             All shares remain anonymous and expire in 24 hours.
-          </p>
-        </motion.div>
-
-        {/* Streak Info */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mt-6 text-center"
-        >
-          <p className="text-slate-500 text-sm">
-            🔥 You've unloaded for <span className="text-orange-400">7 days</span> in a row
           </p>
         </motion.div>
       </div>

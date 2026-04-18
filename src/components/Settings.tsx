@@ -1,20 +1,47 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Shield, Bell, Eye, Moon, Volume2, HelpCircle, FileText, LogOut, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Shield, Bell, Eye, Moon, Volume2, HelpCircle, FileText, LogOut, ChevronRight, Ghost } from 'lucide-react';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import { Separator } from './ui/separator';
+import { useAuth } from '../context/AuthContext';
 
 interface SettingsProps {
   navigateTo: (screen: string) => void;
 }
 
+function loadSetting(key: string, defaultValue: boolean): boolean {
+  try {
+    const stored = localStorage.getItem(`soulspace_setting_${key}`);
+    return stored !== null ? stored === 'true' : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+function saveSetting(key: string, value: boolean) {
+  try {
+    localStorage.setItem(`soulspace_setting_${key}`, String(value));
+  } catch {}
+}
+
 export default function Settings({ navigateTo }: SettingsProps) {
-  const [ghostMode, setGhostMode] = useState(true);
-  const [notifications, setNotifications] = useState(true);
-  const [blurPreviews, setBlurPreviews] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
-  const [soundEffects, setSoundEffects] = useState(true);
+  const [ghostMode, setGhostMode] = useState(() => loadSetting('ghostMode', true));
+  const [notifications, setNotifications] = useState(() => loadSetting('notifications', true));
+  const [blurPreviews, setBlurPreviews] = useState(() => loadSetting('blurPreviews', false));
+  const [darkMode, setDarkMode] = useState(() => loadSetting('darkMode', true));
+  const [soundEffects, setSoundEffects] = useState(() => loadSetting('soundEffects', true));
+  const { logout, user } = useAuth();
+
+  const toggle = (key: string, setter: (v: boolean) => void, value: boolean) => {
+    setter(value);
+    saveSetting(key, value);
+  };
+
+  const handleSignOut = () => {
+    logout();
+    navigateTo('onboarding-new');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 pb-6">
@@ -41,6 +68,23 @@ export default function Settings({ navigateTo }: SettingsProps) {
       </motion.div>
 
       <div className="max-w-2xl mx-auto px-4 py-6">
+        {/* Current User */}
+        {user && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-slate-800/40 border border-slate-700/50 rounded-3xl flex items-center gap-3"
+          >
+            <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+              <Ghost className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <p className="text-slate-200">{user.username}</p>
+              <p className="text-slate-500 text-sm">Ghost Mode Active</p>
+            </div>
+          </motion.div>
+        )}
+
         {/* Privacy & Anonymity */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -58,7 +102,7 @@ export default function Settings({ navigateTo }: SettingsProps) {
                   <p className="text-slate-500 text-sm">Stay completely anonymous</p>
                 </div>
               </div>
-              <Switch checked={ghostMode} onCheckedChange={setGhostMode} />
+              <Switch checked={ghostMode} onCheckedChange={(v) => toggle('ghostMode', setGhostMode, v)} />
             </div>
             <Separator className="bg-slate-700/50" />
             <div className="p-4 flex items-center justify-between">
@@ -69,7 +113,7 @@ export default function Settings({ navigateTo }: SettingsProps) {
                   <p className="text-slate-500 text-sm">Hide content until opened</p>
                 </div>
               </div>
-              <Switch checked={blurPreviews} onCheckedChange={setBlurPreviews} />
+              <Switch checked={blurPreviews} onCheckedChange={(v) => toggle('blurPreviews', setBlurPreviews, v)} />
             </div>
           </div>
         </motion.div>
@@ -91,7 +135,7 @@ export default function Settings({ navigateTo }: SettingsProps) {
                   <p className="text-slate-500 text-sm">Get notified of replies</p>
                 </div>
               </div>
-              <Switch checked={notifications} onCheckedChange={setNotifications} />
+              <Switch checked={notifications} onCheckedChange={(v) => toggle('notifications', setNotifications, v)} />
             </div>
           </div>
         </motion.div>
@@ -113,7 +157,7 @@ export default function Settings({ navigateTo }: SettingsProps) {
                   <p className="text-slate-500 text-sm">Easy on the eyes</p>
                 </div>
               </div>
-              <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+              <Switch checked={darkMode} onCheckedChange={(v) => toggle('darkMode', setDarkMode, v)} />
             </div>
             <Separator className="bg-slate-700/50" />
             <div className="p-4 flex items-center justify-between">
@@ -124,7 +168,7 @@ export default function Settings({ navigateTo }: SettingsProps) {
                   <p className="text-slate-500 text-sm">Calming ambient sounds</p>
                 </div>
               </div>
-              <Switch checked={soundEffects} onCheckedChange={setSoundEffects} />
+              <Switch checked={soundEffects} onCheckedChange={(v) => toggle('soundEffects', setSoundEffects, v)} />
             </div>
           </div>
         </motion.div>
@@ -170,6 +214,7 @@ export default function Settings({ navigateTo }: SettingsProps) {
         >
           <Button
             variant="outline"
+            onClick={handleSignOut}
             className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
           >
             <LogOut className="w-4 h-4 mr-2" />
@@ -177,7 +222,6 @@ export default function Settings({ navigateTo }: SettingsProps) {
           </Button>
         </motion.div>
 
-        {/* Version */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

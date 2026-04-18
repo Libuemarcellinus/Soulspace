@@ -1,84 +1,28 @@
 import { motion } from 'motion/react';
-import { ArrowLeft, Users, TrendingUp, Heart, Brain, Moon, Sunrise, Compass, User, Ghost } from 'lucide-react';
+import { ArrowLeft, Users, TrendingUp, Heart, Ghost, Compass, User } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { useApi } from '../hooks/useApi';
+import { circlesApi } from '../lib/api';
+import { mockCircles, mapApiCircle } from '../lib/mockData';
+import ReconnectingBanner from './ReconnectingBanner';
 
 interface SoulCirclesProps {
   navigateTo: (screen: string, data?: any) => void;
 }
 
-const circles = [
-  {
-    id: 1,
-    name: 'Anxiety & Peace',
-    icon: Brain,
-    color: 'from-purple-500 to-indigo-500',
-    members: '12.4k',
-    activeNow: 847,
-    description: 'Finding calm in the storm',
-    gradient: 'bg-gradient-to-br from-purple-500/20 to-indigo-500/20',
-    border: 'border-purple-500/30'
-  },
-  {
-    id: 2,
-    name: 'Heartbreak Haven',
-    icon: Heart,
-    color: 'from-pink-500 to-rose-500',
-    members: '18.2k',
-    activeNow: 1203,
-    description: 'Healing broken hearts together',
-    gradient: 'bg-gradient-to-br from-pink-500/20 to-rose-500/20',
-    border: 'border-pink-500/30'
-  },
-  {
-    id: 3,
-    name: 'Night Thoughts',
-    icon: Moon,
-    color: 'from-indigo-500 to-blue-500',
-    members: '9.8k',
-    activeNow: 654,
-    description: '3 AM confessions',
-    gradient: 'bg-gradient-to-br from-indigo-500/20 to-blue-500/20',
-    border: 'border-indigo-500/30'
-  },
-  {
-    id: 4,
-    name: 'New Beginnings',
-    icon: Sunrise,
-    color: 'from-emerald-500 to-teal-500',
-    members: '15.6k',
-    activeNow: 923,
-    description: 'Starting over, starting fresh',
-    gradient: 'bg-gradient-to-br from-emerald-500/20 to-teal-500/20',
-    border: 'border-emerald-500/30'
-  },
-  {
-    id: 5,
-    name: 'Lost & Found',
-    icon: Compass,
-    color: 'from-blue-500 to-cyan-500',
-    members: '11.3k',
-    activeNow: 701,
-    description: 'Finding your way',
-    gradient: 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20',
-    border: 'border-blue-500/30'
-  },
-  {
-    id: 6,
-    name: 'Self-Discovery',
-    icon: User,
-    color: 'from-violet-500 to-purple-500',
-    members: '14.7k',
-    activeNow: 892,
-    description: 'Journey within',
-    gradient: 'bg-gradient-to-br from-violet-500/20 to-purple-500/20',
-    border: 'border-violet-500/30'
-  }
-];
-
 export default function SoulCircles({ navigateTo }: SoulCirclesProps) {
+  const { data: rawCircles, isLoading, error } = useApi(() => circlesApi.getActive(), []);
+  const isFallback = !isLoading && error !== null;
+  const circlesArray = Array.isArray(rawCircles) ? rawCircles : null;
+  const circles = (circlesArray ?? (isFallback ? mockCircles : [])).map(mapApiCircle);
+
+  const trendingCircle = circles[1] ?? circles[0];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 pb-24">
+      <ReconnectingBanner show={isFallback} />
+
       {/* Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -117,81 +61,103 @@ export default function SoulCircles({ navigateTo }: SoulCirclesProps) {
         </motion.div>
 
         {/* Trending Circle */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-6"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-4 h-4 text-purple-400" />
-            <span className="text-slate-400 text-sm">Trending Now</span>
-          </div>
-          <button
-            onClick={() => navigateTo('circle-feed', { circle: circles[1] })}
-            className="w-full bg-gradient-to-br from-pink-500/20 to-rose-500/20 border-2 border-pink-500/30 rounded-3xl p-6 hover:border-pink-400/50 transition-all text-left"
+        {isLoading && !isFallback ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-6"
           >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-pink-500/20 flex items-center justify-center">
-                  <Heart className="w-6 h-6 text-pink-400" />
-                </div>
-                <div>
-                  <h3 className="text-slate-100 mb-1">Heartbreak Haven</h3>
-                  <p className="text-slate-400 text-sm">Healing broken hearts together</p>
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-purple-400" />
+              <span className="text-slate-400 text-sm">Trending Now</span>
+            </div>
+            <div className="w-full bg-slate-800/40 border border-slate-700/50 rounded-3xl p-6 animate-pulse h-32" />
+          </motion.div>
+        ) : trendingCircle ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-6"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-purple-400" />
+              <span className="text-slate-400 text-sm">Trending Now</span>
+            </div>
+            <button
+              onClick={() => navigateTo('circle-feed', { circle: trendingCircle })}
+              className={`w-full ${trendingCircle.gradient} border-2 ${trendingCircle.border} rounded-3xl p-6 hover:border-opacity-50 transition-all text-left`}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${trendingCircle.color} flex items-center justify-center`}>
+                    {(() => { const Icon = trendingCircle.icon; return <Icon className="w-6 h-6 text-white" />; })()}
+                  </div>
+                  <div>
+                    <h3 className="text-slate-100 mb-1">{trendingCircle.name}</h3>
+                    <p className="text-slate-400 text-sm">{trendingCircle.description}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-4 text-sm">
-              <span className="text-slate-400">
-                <Users className="w-4 h-4 inline mr-1" />
-                {circles[1].members} souls
-              </span>
-              <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
-                {circles[1].activeNow} active now
-              </Badge>
-            </div>
-          </button>
-        </motion.div>
+              <div className="flex items-center gap-4 text-sm">
+                <span className="text-slate-400">
+                  <Users className="w-4 h-4 inline mr-1" />
+                  {trendingCircle.members} souls
+                </span>
+                <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+                  {trendingCircle.activeNow} active now
+                </Badge>
+              </div>
+            </button>
+          </motion.div>
+        ) : null}
 
         {/* All Circles */}
         <div className="space-y-4">
           <h2 className="text-slate-300 mb-4">All Circles</h2>
-          
-          {circles.map((circle, index) => {
-            const Icon = circle.icon;
-            return (
-              <motion.button
-                key={circle.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + index * 0.05 }}
-                onClick={() => navigateTo('circle-feed', { circle })}
-                className={`w-full ${circle.gradient} border ${circle.border} rounded-2xl p-4 hover:border-opacity-50 transition-all text-left`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${circle.color} flex items-center justify-center`}>
-                      <Icon className="w-5 h-5 text-white" />
+
+          {isLoading && !isFallback
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 animate-pulse h-20"
+                />
+              ))
+            : circles.map((circle, index) => {
+                const Icon = circle.icon;
+                return (
+                  <motion.button
+                    key={circle.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 + index * 0.05 }}
+                    onClick={() => navigateTo('circle-feed', { circle })}
+                    className={`w-full ${circle.gradient} border ${circle.border} rounded-2xl p-4 hover:border-opacity-50 transition-all text-left`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${circle.color} flex items-center justify-center`}>
+                          <Icon className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-slate-100 mb-1">{circle.name}</h3>
+                          <p className="text-slate-400 text-sm">{circle.description}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-slate-100 mb-1">{circle.name}</h3>
-                      <p className="text-slate-400 text-sm">{circle.description}</p>
+                    <div className="flex items-center gap-4 text-sm mt-3">
+                      <span className="text-slate-400">
+                        <Users className="w-3 h-3 inline mr-1" />
+                        {circle.members}
+                      </span>
+                      <span className="text-emerald-400">
+                        {circle.activeNow} active
+                      </span>
                     </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 text-sm mt-3">
-                  <span className="text-slate-400">
-                    <Users className="w-3 h-3 inline mr-1" />
-                    {circle.members}
-                  </span>
-                  <span className="text-emerald-400">
-                    {circle.activeNow} active
-                  </span>
-                </div>
-              </motion.button>
-            );
-          })}
+                  </motion.button>
+                );
+              })}
         </div>
       </div>
 

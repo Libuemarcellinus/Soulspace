@@ -1,31 +1,38 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Type, Mic, Palette, Send, Smile, Frown, Meh, Heart, Zap } from 'lucide-react';
+import { X, Type, Mic, Palette, Send, Meh } from 'lucide-react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
-import { Badge } from './ui/badge';
+import { useApi } from '../hooks/useApi';
+import { moodsApi, soulsApi } from '../lib/api';
+import { mockMoods, mapApiMood } from '../lib/mockData';
 
 interface PostCreationProps {
   navigateTo: (screen: string) => void;
 }
 
-const moods = [
-  { id: 'anxious', label: 'Anxious', icon: Frown, color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  { id: 'hopeful', label: 'Hopeful', icon: Smile, color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  { id: 'overwhelmed', label: 'Overwhelmed', icon: Zap, color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  { id: 'grateful', label: 'Grateful', icon: Heart, color: 'bg-pink-500/20 text-pink-400 border-pink-500/30' },
-  { id: 'lonely', label: 'Lonely', icon: Meh, color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
-  { id: 'neutral', label: 'Just Existing', icon: Meh, color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
-];
-
 export default function PostCreation({ navigateTo }: PostCreationProps) {
   const [content, setContent] = useState('');
-  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [selectedMoodId, setSelectedMoodId] = useState<string | null>(null);
   const [inputMode, setInputMode] = useState<'text' | 'voice' | 'doodle'>('text');
+  const [isPosting, setIsPosting] = useState(false);
 
-  const handlePost = () => {
-    // Simulate posting
-    setTimeout(() => navigateTo('home'), 500);
+  const { data: rawMoods, isLoading: moodsLoading } = useApi(() => moodsApi.getActive(), []);
+  const moods = (rawMoods ?? mockMoods).map(mapApiMood);
+
+  const selectedMood = moods.find(m => m.id === selectedMoodId) ?? null;
+
+  const handlePost = async () => {
+    if (!content.trim() || selectedMoodId === null) return;
+    setIsPosting(true);
+    try {
+      await soulsApi.create(content.trim(), selectedMoodId);
+    } catch {
+      // silently fall through — navigate home regardless
+    } finally {
+      setIsPosting(false);
+      navigateTo('home');
+    }
   };
 
   return (
@@ -49,11 +56,11 @@ export default function PostCreation({ navigateTo }: PostCreationProps) {
             <h1 className="text-slate-100">Share Your Soul</h1>
             <Button
               onClick={handlePost}
-              disabled={!content.trim() || !selectedMood}
+              disabled={!content.trim() || selectedMoodId === null || isPosting}
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50"
             >
               <Send className="w-4 h-4 mr-2" />
-              Post
+              {isPosting ? 'Posting…' : 'Post'}
             </Button>
           </div>
         </div>
@@ -68,24 +75,31 @@ export default function PostCreation({ navigateTo }: PostCreationProps) {
         >
           <label className="block text-slate-300 mb-3">How are you feeling?</label>
           <div className="grid grid-cols-3 gap-3 mb-6">
-            {moods.map((mood) => {
-              const Icon = mood.icon;
-              return (
-                <motion.button
-                  key={mood.id}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setSelectedMood(mood.id)}
-                  className={`p-4 rounded-2xl border-2 transition-all ${
-                    selectedMood === mood.id
-                      ? mood.color
-                      : 'bg-slate-800/40 text-slate-400 border-slate-700/50 hover:border-slate-600/50'
-                  }`}
-                >
-                  <Icon className="w-6 h-6 mx-auto mb-2" />
-                  <span className="text-sm">{mood.label}</span>
-                </motion.button>
-              );
-            })}
+            {moodsLoading && !rawMoods
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="p-4 rounded-2xl border-2 bg-slate-800/40 border-slate-700/50 animate-pulse h-20"
+                  />
+                ))
+              : moods.map((mood) => {
+                  const Icon = mood.icon ?? Meh;
+                  return (
+                    <motion.button
+                      key={mood.id}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setSelectedMoodId(mood.id)}
+                      className={`p-4 rounded-2xl border-2 transition-all ${
+                        selectedMoodId === mood.id
+                          ? mood.color
+                          : 'bg-slate-800/40 text-slate-400 border-slate-700/50 hover:border-slate-600/50'
+                      }`}
+                    >
+                      <Icon className="w-6 h-6 mx-auto mb-2" />
+                      <span className="text-sm">{mood.label}</span>
+                    </motion.button>
+                  );
+                })}
           </div>
         </motion.div>
 
@@ -132,12 +146,17 @@ export default function PostCreation({ navigateTo }: PostCreationProps) {
           transition={{ delay: 0.3 }}
         >
           {inputMode === 'text' && (
-            <Textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Pour your heart out... Your words are safe here."
-              className="min-h-[300px] bg-slate-800/40 border-slate-700/50 text-slate-200 placeholder:text-slate-500 rounded-3xl resize-none focus:border-purple-500/50"
-            />
+            <div>
+              <Textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value.slice(0, 500))}
+                placeholder="Pour your heart out... Your words are safe here."
+                className="min-h-[300px] bg-slate-800/40 border-slate-700/50 text-slate-200 placeholder:text-slate-500 rounded-3xl resize-none focus:border-purple-500/50"
+              />
+              <p className={`text-xs mt-2 text-right ${content.length >= 480 ? 'text-orange-400' : 'text-slate-500'}`}>
+                {content.length}/500
+              </p>
+            </div>
           )}
 
           {inputMode === 'voice' && (

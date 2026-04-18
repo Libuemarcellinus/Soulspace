@@ -1,45 +1,54 @@
+import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Heart, MessageCircle, Share2, Flag, Ghost, Clock } from 'lucide-react';
+import { ArrowLeft, Heart, MessageCircle, Flag, Ghost, Clock, MessageSquare } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { useApi } from '../hooks/useApi';
+import { soulsApi } from '../lib/api';
 
 interface PostDetailProps {
   post: any;
   navigateTo: (screen: string, data?: any) => void;
 }
 
-const mockReplies = [
-  {
-    id: 1,
-    content: "I feel you. You're not alone in this.",
-    empathy: 23,
-    timestamp: '1m ago',
-    mood: 'supportive',
-    moodColor: 'text-emerald-400'
-  },
-  {
-    id: 2,
-    content: "This resonates deeply. Thank you for sharing.",
-    empathy: 18,
-    timestamp: '5m ago',
-    mood: 'grateful',
-    moodColor: 'text-pink-400'
-  },
-  {
-    id: 3,
-    content: "Sending you strength. Your feelings are valid.",
-    empathy: 31,
-    timestamp: '12m ago',
-    mood: 'caring',
-    moodColor: 'text-purple-400'
-  }
-];
-
 export default function PostDetail({ post, navigateTo }: PostDetailProps) {
+  const [liked, setLiked] = useState(false);
+  const [empathyCount, setEmpathyCount] = useState(post?.empathy ?? 0);
+  const [showReportConfirm, setShowReportConfirm] = useState(false);
+  const [reported, setReported] = useState(false);
+
+  const { data: rawReplies, isLoading: repliesLoading, error: repliesError } = useApi(
+    () => soulsApi.getReplies(post?.id),
+    [post?.id]
+  );
+  const repliesUnavailable = !repliesLoading && repliesError !== null &&
+    /404|not found/i.test(repliesError.message ?? '');
+  const replies = Array.isArray(rawReplies) ? rawReplies : [];
+
   if (!post) {
     navigateTo('home');
     return null;
   }
+
+  const handleLike = async () => {
+    if (liked) return;
+    setLiked(true);
+    setEmpathyCount((c: number) => c + 1);
+    try {
+      await soulsApi.like(post.id);
+    } catch {
+      setLiked(false);
+      setEmpathyCount((c: number) => c - 1);
+    }
+  };
+
+  const handleReport = async () => {
+    try {
+      await soulsApi.report(post.id, 'inappropriate content');
+    } catch {}
+    setReported(true);
+    setShowReportConfirm(false);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 pb-6">
@@ -60,13 +69,26 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
               <ArrowLeft className="w-6 h-6" />
             </Button>
             <h1 className="text-slate-100">Soul</h1>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-slate-400 hover:text-red-400"
-            >
-              <Flag className="w-5 h-5" />
-            </Button>
+            {reported ? (
+              <span className="text-slate-500 text-xs pr-2">Reported</span>
+            ) : showReportConfirm ? (
+              <Button
+                size="sm"
+                onClick={handleReport}
+                className="bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 text-xs"
+              >
+                Confirm Report
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowReportConfirm(true)}
+                className="text-slate-400 hover:text-red-400"
+              >
+                <Flag className="w-5 h-5" />
+              </Button>
+            )}
           </div>
         </div>
       </motion.div>
@@ -78,7 +100,6 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
           animate={{ opacity: 1, y: 0 }}
           className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-3xl p-6 mb-6"
         >
-          {/* Post Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Ghost className={`w-5 h-5 ${post.moodColor}`} />
@@ -92,10 +113,8 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
             </div>
           </div>
 
-          {/* Content */}
           <p className="text-slate-200 text-lg leading-relaxed mb-6">{post.content}</p>
 
-          {/* Expiration Timer */}
           <div className="flex items-center gap-2 mb-6">
             <div className="flex-1 h-1 bg-slate-700/50 rounded-full overflow-hidden">
               <motion.div
@@ -108,14 +127,16 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
             <span className="text-slate-500 text-xs">expires in {post.expiresIn}</span>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-6">
             <motion.button
               whileTap={{ scale: 0.9 }}
-              className="flex items-center gap-2 text-slate-400 hover:text-pink-400 transition-colors"
+              onClick={handleLike}
+              className={`flex items-center gap-2 transition-colors ${
+                liked ? 'text-pink-400' : 'text-slate-400 hover:text-pink-400'
+              }`}
             >
               <Heart className="w-5 h-5" />
-              <span>{post.empathy}</span>
+              <span>{empathyCount}</span>
             </motion.button>
             <button
               onClick={() => navigateTo('reply', { post })}
@@ -124,43 +145,58 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
               <MessageCircle className="w-5 h-5" />
               <span>{post.replies}</span>
             </button>
-            <button className="flex items-center gap-2 text-slate-400 hover:text-blue-400 transition-colors">
-              <Share2 className="w-5 h-5" />
-            </button>
           </div>
         </motion.div>
 
         {/* Replies Section */}
         <div className="space-y-4">
-          <h2 className="text-slate-300 mb-4">Echoes ({mockReplies.length})</h2>
-          
-          {mockReplies.map((reply, index) => (
-            <motion.div
-              key={reply.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 + index * 0.1 }}
-              className="bg-slate-800/30 border border-slate-700/30 rounded-2xl p-4 ml-6"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <Ghost className={`w-4 h-4 ${reply.moodColor}`} />
-                <span className="text-slate-500 text-sm">{reply.timestamp}</span>
-              </div>
-              <p className="text-slate-300 mb-3">{reply.content}</p>
-              <div className="flex items-center gap-4">
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  className="flex items-center gap-2 text-slate-400 hover:text-pink-400 transition-colors text-sm"
+          {repliesLoading ? (
+            <>
+              <div className="h-5 w-24 bg-slate-700 rounded animate-pulse mb-4" />
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="bg-slate-800/30 border border-slate-700/30 rounded-2xl p-4 ml-6 animate-pulse h-20" />
+              ))}
+            </>
+          ) : repliesUnavailable || replies.length === 0 ? (
+            <div className="ml-6 p-4 bg-slate-800/20 border border-slate-700/30 rounded-2xl flex items-center gap-3">
+              <MessageSquare className="w-5 h-5 text-slate-600 flex-shrink-0" />
+              <p className="text-slate-500 text-sm">
+                {repliesUnavailable ? 'Replies coming soon' : 'No echoes yet — be the first'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <h2 className="text-slate-300 mb-4">Echoes ({replies.length})</h2>
+              {replies.map((reply, index) => (
+                <motion.div
+                  key={reply.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 + index * 0.1 }}
+                  className="bg-slate-800/30 border border-slate-700/30 rounded-2xl p-4 ml-6"
                 >
-                  <Heart className="w-4 h-4" />
-                  <span>{reply.empathy}</span>
-                </motion.button>
-              </div>
-            </motion.div>
-          ))}
+                  <div className="flex items-center gap-2 mb-3">
+                    <Ghost className="w-4 h-4 text-slate-500" />
+                    <span className="text-slate-500 text-sm">
+                      {reply.created_at
+                        ? new Date(reply.created_at).toLocaleDateString()
+                        : 'just now'}
+                    </span>
+                  </div>
+                  <p className="text-slate-300 mb-3">{reply.reply}</p>
+                  {(reply.like_count ?? 0) > 0 && (
+                    <div className="flex items-center gap-2 text-slate-500 text-sm">
+                      <Heart className="w-4 h-4" />
+                      <span>{reply.like_count}</span>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </>
+          )}
         </div>
 
-        {/* Reply Button */}
+        {/* Reply CTA */}
         <motion.button
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

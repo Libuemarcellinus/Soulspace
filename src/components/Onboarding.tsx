@@ -44,7 +44,7 @@ export default function Onboarding({ navigateTo }: OnboardingProps) {
   };
 
   const handleGetStarted = () => {
-    navigateTo('home');
+    navigateTo('register');
   };
 
   const handleDragEnd = (event: any, info: PanInfo) => {
@@ -113,7 +113,7 @@ export default function Onboarding({ navigateTo }: OnboardingProps) {
                   </motion.div>
                   <motion.div
                     className="absolute -top-2 -right-2 text-2xl"
-                    animate={{ 
+                    animate={{
                       scale: [1, 1.2, 1],
                       opacity: [0.7, 1, 0.7]
                     }}
@@ -124,11 +124,11 @@ export default function Onboarding({ navigateTo }: OnboardingProps) {
                 </div>
               ) : (
                 <motion.div
-                  animate={{ 
+                  animate={{
                     y: [0, -10, 0],
                     opacity: currentSlideData.isFinal ? [0.7, 1, 0.7] : 1
                   }}
-                  transition={{ 
+                  transition={{
                     duration: currentSlideData.isFinal ? 2 : 3,
                     repeat: Infinity,
                     ease: 'easeInOut'

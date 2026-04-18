@@ -4,6 +4,7 @@ import { X, Send, Ghost } from 'lucide-react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
+import { soulsApi } from '../lib/api';
 
 interface ReplyScreenProps {
   post: any;
@@ -12,15 +13,30 @@ interface ReplyScreenProps {
 
 export default function ReplyScreen({ post, navigateTo }: ReplyScreenProps) {
   const [reply, setReply] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
 
   if (!post) {
     navigateTo('home');
     return null;
   }
 
-  const handleSendReply = () => {
-    // Simulate sending reply
-    setTimeout(() => navigateTo('post-detail', { post }), 500);
+  const handleSendReply = async () => {
+    if (!reply.trim()) return;
+    setIsSending(true);
+    try {
+      await soulsApi.createReply(post.id, reply.trim(), '');
+      navigateTo('post-detail', { post });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (/404|not found/i.test(msg)) {
+        setUnavailable(true);
+      } else {
+        navigateTo('post-detail', { post });
+      }
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -44,11 +60,11 @@ export default function ReplyScreen({ post, navigateTo }: ReplyScreenProps) {
             <h1 className="text-slate-100">Echo Back</h1>
             <Button
               onClick={handleSendReply}
-              disabled={!reply.trim()}
+              disabled={!reply.trim() || isSending || unavailable}
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50"
             >
               <Send className="w-4 h-4 mr-2" />
-              Send
+              {isSending ? 'Sending…' : 'Send'}
             </Button>
           </div>
         </div>
@@ -71,36 +87,49 @@ export default function ReplyScreen({ post, navigateTo }: ReplyScreenProps) {
           <p className="text-slate-300 text-sm line-clamp-3">{post.content}</p>
         </motion.div>
 
-        {/* Reply Input */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Textarea
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-            placeholder="Share your thoughts, offer support, or just let them know they're heard..."
-            className="min-h-[300px] bg-slate-800/40 border-slate-700/50 text-slate-200 placeholder:text-slate-500 rounded-3xl resize-none focus:border-purple-500/50"
-            autoFocus
-          />
-        </motion.div>
+        {unavailable ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-6 bg-slate-800/40 border border-slate-700/50 rounded-3xl text-center"
+          >
+            <p className="text-slate-300 mb-2">Replies are coming soon</p>
+            <p className="text-slate-500 text-sm">This feature isn't available yet. Check back later.</p>
+          </motion.div>
+        ) : (
+          <>
+            {/* Reply Input */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Textarea
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                placeholder="Share your thoughts, offer support, or just let them know they're heard..."
+                className="min-h-[300px] bg-slate-800/40 border-slate-700/50 text-slate-200 placeholder:text-slate-500 rounded-3xl resize-none focus:border-purple-500/50"
+                autoFocus
+              />
+            </motion.div>
 
-        {/* Guidelines */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="mt-6 p-4 bg-slate-800/20 border border-slate-700/30 rounded-2xl"
-        >
-          <h3 className="text-slate-300 mb-2">Kind Echoes</h3>
-          <ul className="text-slate-400 text-sm space-y-1">
-            <li>• Be compassionate and supportive</li>
-            <li>• Validate their feelings</li>
-            <li>• Avoid judgment or unsolicited advice</li>
-            <li>• Your echo will also expire in 24 hours</li>
-          </ul>
-        </motion.div>
+            {/* Guidelines */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="mt-6 p-4 bg-slate-800/20 border border-slate-700/30 rounded-2xl"
+            >
+              <h3 className="text-slate-300 mb-2">Kind Echoes</h3>
+              <ul className="text-slate-400 text-sm space-y-1">
+                <li>• Be compassionate and supportive</li>
+                <li>• Validate their feelings</li>
+                <li>• Avoid judgment or unsolicited advice</li>
+                <li>• Your echo will also expire in 24 hours</li>
+              </ul>
+            </motion.div>
+          </>
+        )}
       </div>
     </div>
   );
