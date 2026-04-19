@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { soulsApi } from '../lib/api';
+import { isLiked, persistLike, revertLike, getStoredCount } from '../lib/likeStorage';
 
 interface PostDetailProps {
   post: any;
@@ -12,8 +13,11 @@ interface PostDetailProps {
 }
 
 export default function PostDetail({ post, navigateTo }: PostDetailProps) {
-  const [liked, setLiked] = useState(false);
-  const [empathyCount, setEmpathyCount] = useState(post?.empathy ?? 0);
+  const [liked, setLiked] = useState(() => isLiked(post?.id ?? ''));
+  const storedCount = getStoredCount(post?.id ?? '');
+  const [empathyCount, setEmpathyCount] = useState(
+    storedCount !== null ? Math.max(post?.empathy ?? 0, storedCount) : (post?.empathy ?? 0)
+  );
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [reported, setReported] = useState(false);
 
@@ -34,11 +38,13 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
     if (liked) return;
     setLiked(true);
     setEmpathyCount((c: number) => c + 1);
+    persistLike(post.id, empathyCount + 1);
     try {
       await soulsApi.like(post.id);
     } catch {
       setLiked(false);
       setEmpathyCount((c: number) => c - 1);
+      revertLike(post.id);
     }
   };
 

@@ -157,7 +157,7 @@ const moodTextColorMap: Record<string, string> = {
 export function mapApiMood(m: ApiMood) {
   const key = m.mood.toLowerCase();
   return {
-    id: m.id,
+    id: m.mood_id ?? m.id ?? '',
     label: m.mood,
     icon: moodIconMap[key] ?? Meh,
     color: moodColorMap[key] ?? 'bg-slate-500/20 text-slate-400 border-slate-500/30',
@@ -190,7 +190,7 @@ function formatExpiresIn(expiresStr?: string): string {
 export function mapApiSoul(soul: ApiSoul) {
   const key = (soul.mood ?? '').toLowerCase();
   return {
-    id: soul.id,
+    id: soul.soul_id ?? soul.id ?? '',
     mood: soul.mood ?? 'unknown',
     moodColor: moodTextColorMap[key] ?? 'text-slate-400',
     content: soul.soul,
@@ -274,7 +274,7 @@ function formatMemberCount(count: number): string {
 export function mapApiCircle(circle: ApiCircle, index: number) {
   const style = circleStyleMap[circle.circle] ?? defaultCircleStyles[index % defaultCircleStyles.length];
   return {
-    id: circle.id,
+    id: circle.circle_id ?? circle.id ?? '',
     name: circle.circle,
     icon: style.icon,
     color: style.color,

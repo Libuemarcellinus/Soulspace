@@ -8,8 +8,8 @@ function getToken(): string | null {
 }
 
 function authHeaders(): Record<string, string> {
-  const token = getToken();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
   return headers;
 }
@@ -24,6 +24,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(`API ${res.status}: ${text}`);
   }
   return res.json() as Promise<T>;
+}
+
+// Unwraps bare arrays OR common server wrapper shapes like { data:[...] }, { moods:[...] }, etc.
+function unwrapList<T>(data: unknown, ...keys: string[]): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === 'object') {
+    const obj = data as Record<string, unknown>;
+    for (const key of ['data', 'items', 'results', ...keys]) {
+      if (Array.isArray(obj[key])) return obj[key] as T[];
+    }
+  }
+  return [];
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -49,16 +61,18 @@ export interface ApiDailyPrompt {
 }
 
 export interface ApiMood {
-  id: string;        // UUID
+  id?: string;
+  mood_id?: string;   // server may use this as the primary key
   mood: string;
   mood_icon: string;
   status: string;
 }
 
 export interface ApiSoul {
-  id: string;        // UUID
+  id?: string;
+  soul_id?: string;   // server may use this as the primary key
   soul: string;
-  mood_id: string;   // UUID
+  mood_id?: string;
   mood?: string;
   mood_icon?: string;
   created_at?: string;
@@ -68,7 +82,8 @@ export interface ApiSoul {
 }
 
 export interface ApiCircle {
-  id: string;        // UUID
+  id?: string;
+  circle_id?: string; // server may use this as the primary key
   circle: string;
   icon: string;
   status: string;
@@ -94,14 +109,17 @@ export const authApi = {
 // ── Moods ──────────────────────────────────────────────────────────────────
 
 export const moodsApi = {
-  getActive: () => request<ApiMood[]>('moods/active'),
+  getActive: () =>
+    request<unknown>('moods/active').then(d => unwrapList<ApiMood>(d, 'moods')),
 };
 
 // ── Souls ──────────────────────────────────────────────────────────────────
 
 export const soulsApi = {
-  getActive: () => request<ApiSoul[]>('souls/active'),
-  getPrivate: () => request<ApiSoul[]>('souls/private'),
+  getActive: () =>
+    request<unknown>('souls/active').then(d => unwrapList<ApiSoul>(d, 'souls')),
+  getPrivate: () =>
+    request<unknown>('souls/private').then(d => unwrapList<ApiSoul>(d, 'souls')),
   getAverage: () => request<Record<string, number>>('souls/average'),
   create: (soul: string, mood_id: string) =>
     request<ApiSoul>('souls/create', {
@@ -113,7 +131,8 @@ export const soulsApi = {
       method: 'POST',
       body: JSON.stringify({ soul, circle_id }),
     }),
-  getCircleSouls: (id: string) => request<ApiSoul[]>(`souls/circle_soul?id=${id}`),
+  getCircleSouls: (id: string) =>
+    request<unknown>(`souls/circle_soul?id=${id}`).then(d => unwrapList<ApiSoul>(d, 'souls')),
   like: (id: string) =>
     request<void>(`souls/like?id=${id}`, { method: 'POST' }),
   report: (id: string, reason: string) =>
@@ -121,7 +140,8 @@ export const soulsApi = {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
-  getReplies: (id: string) => request<ApiReply[]>(`souls/replies?id=${id}`),
+  getReplies: (id: string) =>
+    request<unknown>(`souls/replies?id=${id}`).then(d => unwrapList<ApiReply>(d, 'replies')),
   createReply: (id: string, reply: string, mood_id: string) =>
     request<ApiReply>(`souls/replies?id=${id}`, {
       method: 'POST',
@@ -143,10 +163,12 @@ export const dailyApi = {
 // ── Circles ────────────────────────────────────────────────────────────────
 
 export const circlesApi = {
-  getActive: () => request<ApiCircle[]>('circles/active'),
+  getActive: () =>
+    request<unknown>('circles/active').then(d => unwrapList<ApiCircle>(d, 'circles')),
   join: (circle_id: string) =>
     request<void>(`circles/join?circle_id=${circle_id}`, { method: 'POST' }),
   leave: (circle_id: string) =>
     request<void>(`circles/leave?circle_id=${circle_id}`, { method: 'POST' }),
-  myCircles: () => request<ApiCircle[]>('circles/my_circles'),
+  myCircles: () =>
+    request<unknown>('circles/my_circles').then(d => unwrapList<ApiCircle>(d, 'circles')),
 };

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Heart, MessageCircle, Clock, Ghost, Plus, Compass, TrendingUp, User, UserPlus, UserMinus } from 'lucide-react';
+import { ArrowLeft, Heart, MessageCircle, Clock, Ghost, Plus, Compass, TrendingUp, User, UserPlus, UserMinus, Lock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { soulsApi, circlesApi } from '../lib/api';
 import { mockCircleSouls, mapApiSoul } from '../lib/mockData';
+import { getAllLiked, persistLike, revertLike, getStoredCount } from '../lib/likeStorage';
 import ReconnectingBanner from './ReconnectingBanner';
 
 interface CircleFeedProps {
@@ -13,27 +14,15 @@ interface CircleFeedProps {
   navigateTo: (screen: string, data?: any) => void;
 }
 
-function PostSkeleton() {
-  return (
-    <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-3xl p-6 animate-pulse">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-slate-700 rounded-full" />
-          <div className="w-16 h-5 bg-slate-700 rounded-full" />
-        </div>
-        <div className="w-12 h-4 bg-slate-700 rounded-full" />
-      </div>
-      <div className="space-y-2 mb-4">
-        <div className="w-full h-4 bg-slate-700 rounded" />
-        <div className="w-4/5 h-4 bg-slate-700 rounded" />
-      </div>
-      <div className="h-1 bg-slate-700 rounded-full mb-4" />
-      <div className="flex gap-6">
-        <div className="w-12 h-5 bg-slate-700 rounded" />
-        <div className="w-12 h-5 bg-slate-700 rounded" />
-      </div>
-    </div>
-  );
+// localStorage-backed membership (circles/join + circles/leave not yet on server)
+const STORAGE_KEY = 'soulspace_joined_circles';
+
+function getJoinedIds(): string[] {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]'); }
+  catch { return []; }
+}
+function saveJoinedIds(ids: string[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
 }
 
 export default function CircleFeed({ circle, navigateTo }: CircleFeedProps) {
@@ -47,29 +36,57 @@ export default function CircleFeed({ circle, navigateTo }: CircleFeedProps) {
     [circle.id]
   );
   const isFallback = !isLoading && error !== null;
-  const soulsArray = Array.isArray(rawSouls) ? rawSouls : null;
-  const posts = (soulsArray ?? (isFallback ? mockCircleSouls : [])).map(mapApiSoul);
+  const realPosts = Array.isArray(rawSouls)
+    ? [...rawSouls].sort((a, b) =>
+        new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+      ).map(mapApiSoul)
+    : [];
+  const mockPostsMapped = mockCircleSouls.map(mapApiSoul);
+  const posts = isLoading || isFallback
+    ? mockPostsMapped
+    : realPosts.length > 0
+      ? realPosts
+      : mockPostsMapped;
 
-  const { data: myCircles } = useApi(() => circlesApi.myCircles(), []);
-  const isJoined = myCircles?.some(c => c.id === circle.id) ?? false;
-  const [joinedOptimistic, setJoinedOptimistic] = useState<boolean | null>(null);
-  const joined = joinedOptimistic ?? isJoined;
+  // Membership state — seeded from localStorage, kept in sync
+  const [joined, setJoined] = useState(() => getJoinedIds().includes(circle.id));
   const [joiningLoading, setJoiningLoading] = useState(false);
+
+  // Like state — seeded from localStorage so it persists across navigation
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(() => getAllLiked());
+
+  const handleEmpathy = async (postId: string, currentCount: number) => {
+    if (likedPosts.has(postId)) return;
+    const newCount = currentCount + 1;
+    setLikedPosts(prev => new Set(prev).add(postId));
+    persistLike(postId, newCount);
+    try {
+      await soulsApi.like(postId);
+    } catch {
+      setLikedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
+      revertLike(postId);
+    }
+  };
+
+  const displayCount = (post: { id: string; empathy: number }) => {
+    const stored = getStoredCount(post.id);
+    return stored !== null ? Math.max(post.empathy, stored) : post.empathy;
+  };
 
   const handleJoinLeave = async () => {
     setJoiningLoading(true);
-    setJoinedOptimistic(!joined);
-    try {
-      if (joined) {
-        await circlesApi.leave(circle.id);
-      } else {
-        await circlesApi.join(circle.id);
-      }
-    } catch {
-      setJoinedOptimistic(joined);
-    } finally {
-      setJoiningLoading(false);
+    const current = getJoinedIds();
+    if (joined) {
+      saveJoinedIds(current.filter(id => id !== circle.id));
+      setJoined(false);
+      // Fire-and-forget once backend implements this
+      circlesApi.leave(circle.id).catch(() => {});
+    } else {
+      saveJoinedIds([...current, circle.id]);
+      setJoined(true);
+      circlesApi.join(circle.id).catch(() => {});
     }
+    setJoiningLoading(false);
   };
 
   const Icon = circle.icon;
@@ -139,95 +156,97 @@ export default function CircleFeed({ circle, navigateTo }: CircleFeedProps) {
 
       {/* Feed */}
       <div className="max-w-2xl mx-auto px-4 mt-6 space-y-4">
-        {isLoading && !isFallback ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + i * 0.1 }}
-            >
-              <PostSkeleton />
-            </motion.div>
-          ))
-        ) : (
-          posts.map((post, index) => (
-            <motion.div
-              key={post.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + index * 0.1 }}
-              className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-3xl p-6 hover:border-slate-600/50 transition-all cursor-pointer"
-              onClick={() => navigateTo('post-detail', { post })}
-            >
-              {/* Post Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Ghost className={`w-4 h-4 ${post.moodColor}`} />
-                  <Badge variant="outline" className={`${post.moodColor} border-current/30 bg-current/10`}>
-                    {post.mood}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2 text-slate-500 text-sm">
-                  <Clock className="w-3 h-3" />
-                  <span>{post.timestamp}</span>
-                </div>
+        {posts.map((post, index) => (
+          <motion.div
+            key={post.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 + index * 0.05 }}
+            className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-3xl p-6 hover:border-slate-600/50 transition-all cursor-pointer"
+            onClick={() => navigateTo('post-detail', { post })}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Ghost className={`w-4 h-4 ${post.moodColor}`} />
+                <Badge variant="outline" className={`${post.moodColor} border-current/30 bg-current/10`}>
+                  {post.mood}
+                </Badge>
               </div>
-
-              {/* Content */}
-              <p className="text-slate-200 leading-relaxed mb-4">{post.content}</p>
-
-              {/* Expiration Timer */}
-              <div className="flex items-center gap-2 mb-4">
-                <div className="flex-1 h-1 bg-slate-700/50 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
-                    initial={{ width: '100%' }}
-                    animate={{ width: '60%' }}
-                    transition={{ duration: 2 }}
-                  />
-                </div>
-                <span className="text-slate-500 text-xs">expires in {post.expiresIn}</span>
+              <div className="flex items-center gap-2 text-slate-500 text-sm">
+                <Clock className="w-3 h-3" />
+                <span>{post.timestamp}</span>
               </div>
+            </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-6">
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-2 text-slate-400 hover:text-pink-400 transition-colors"
-                >
-                  <Heart className="w-5 h-5" />
-                  <span>{post.empathy}</span>
-                </motion.button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigateTo('reply', { post });
-                  }}
-                  className="flex items-center gap-2 text-slate-400 hover:text-purple-400 transition-colors"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <span>{post.replies}</span>
-                </button>
+            <p className="text-slate-200 leading-relaxed mb-4">{post.content}</p>
+
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex-1 h-1 bg-slate-700/50 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                  initial={{ width: '100%' }}
+                  animate={{ width: '60%' }}
+                  transition={{ duration: 2 }}
+                />
               </div>
-            </motion.div>
-          ))
-        )}
+              <span className="text-slate-500 text-xs">expires in {post.expiresIn}</span>
+            </div>
+
+            <div className="flex items-center gap-6">
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEmpathy(post.id, displayCount(post));
+                }}
+                className={`flex items-center gap-2 transition-colors ${
+                  likedPosts.has(post.id) ? 'text-pink-400' : 'text-slate-400 hover:text-pink-400'
+                }`}
+              >
+                <Heart className="w-5 h-5" />
+                <span>{displayCount(post)}</span>
+              </motion.button>
+              <button
+                onClick={(e) => { e.stopPropagation(); navigateTo('reply', { post }); }}
+                className="flex items-center gap-2 text-slate-400 hover:text-purple-400 transition-colors"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span>{post.replies}</span>
+              </button>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Floating Action Button */}
-      <motion.button
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.5, type: 'spring' }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={() => navigateTo('create')}
-        className="fixed bottom-24 right-6 w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-lg shadow-purple-500/50 flex items-center justify-center"
-      >
-        <Plus className="w-8 h-8 text-white" />
-      </motion.button>
+      {/* Post button — members only */}
+      {joined ? (
+        <motion.button
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.5, type: 'spring' }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => navigateTo('circle-create', { circle })}
+          className="fixed bottom-24 right-6 w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-lg shadow-purple-500/50 flex items-center justify-center"
+        >
+          <Plus className="w-8 h-8 text-white" />
+        </motion.button>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="fixed bottom-24 right-6"
+        >
+          <button
+            onClick={handleJoinLeave}
+            className="flex items-center gap-2 bg-slate-800/90 border border-slate-700/50 rounded-full px-4 py-3 text-slate-400 text-sm hover:border-purple-500/50 hover:text-purple-400 transition-all"
+          >
+            <Lock className="w-4 h-4" />
+            Join to post
+          </button>
+        </motion.div>
+      )}
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 backdrop-blur-xl bg-slate-900/90 border-t border-slate-800/50">

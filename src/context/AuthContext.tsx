@@ -29,24 +29,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       return;
     }
-    // Optimistically restore from cache, then verify with server
+    // Restore from cache immediately so the app can proceed without waiting for the network
     try {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
     } catch {
-      // corrupt storage — start fresh
       setIsLoading(false);
       return;
     }
+    // Unblock the UI now — profile check runs in the background
+    setIsLoading(false);
+    // Verify token validity in the background; clear session only on explicit auth errors
     authApi.profile()
       .then((data) => {
         setUser({ id: data.id, username: data.username });
       })
-      .catch(() => {
-        // Profile check failed (network or server error) — keep cached user
-        // so the user isn't logged out just because the server is unreachable
-      })
-      .finally(() => setIsLoading(false));
+      .catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : '';
+        if (/401|403|invalid token/i.test(msg)) {
+          localStorage.removeItem('soulspace_token');
+          localStorage.removeItem('soulspace_user');
+          setToken(null);
+          setUser(null);
+        }
+      });
   }, []);
 
   const persist = (data: AuthResponse) => {

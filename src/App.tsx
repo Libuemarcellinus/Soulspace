@@ -53,6 +53,8 @@ export default function App() {
         return <HomeFeed navigateTo={navigateTo} />;
       case 'create':
         return <PostCreation navigateTo={navigateTo} />;
+      case 'circle-create':
+        return <PostCreation navigateTo={navigateTo} circle={selectedCircle} />;
       case 'post-detail':
         return <PostDetail post={selectedPost} navigateTo={navigateTo} />;
       case 'reply':

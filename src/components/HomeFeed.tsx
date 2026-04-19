@@ -6,6 +6,7 @@ import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { soulsApi } from '../lib/api';
 import { mockSouls, mapApiSoul } from '../lib/mockData';
+import { getAllLiked, persistLike, revertLike, getStoredCount } from '../lib/likeStorage';
 import ReconnectingBanner from './ReconnectingBanner';
 
 interface HomeFeedProps {
@@ -39,22 +40,38 @@ function PostSkeleton() {
 export default function HomeFeed({ navigateTo }: HomeFeedProps) {
   const { data: rawSouls, isLoading, error } = useApi(() => soulsApi.getActive(), []);
   const isFallback = !isLoading && error !== null;
-  const soulsArray = Array.isArray(rawSouls) ? rawSouls : null;
-  const apiPosts = (soulsArray ?? (isFallback ? mockSouls : [])).map(mapApiSoul);
+  const realPosts = Array.isArray(rawSouls)
+    ? [...rawSouls].sort((a, b) =>
+        new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+      ).map(mapApiSoul)
+    : [];
+  const mockPostsMapped = mockSouls.map(mapApiSoul);
+  // Mock while loading or on failure; real-only once data arrives
+  const allPosts = isLoading || isFallback
+    ? mockPostsMapped
+    : realPosts.length > 0
+      ? realPosts
+      : mockPostsMapped;
 
-  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
-  const [localEmpathy, setLocalEmpathy] = useState<Record<string, number>>({});
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(() => getAllLiked());
 
   const handleEmpathy = async (postId: string, currentCount: number) => {
     if (likedPosts.has(postId)) return;
+    const newCount = currentCount + 1;
     setLikedPosts(prev => new Set(prev).add(postId));
-    setLocalEmpathy(prev => ({ ...prev, [postId]: currentCount + 1 }));
+    persistLike(postId, newCount);
     try {
       await soulsApi.like(postId);
     } catch {
       setLikedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
-      setLocalEmpathy(prev => ({ ...prev, [postId]: currentCount }));
+      revertLike(postId);
     }
+  };
+
+  // Show whichever count is higher: API count or our locally-stored liked count
+  const displayCount = (post: { id: string; empathy: number }) => {
+    const stored = getStoredCount(post.id);
+    return stored !== null ? Math.max(post.empathy, stored) : post.empathy;
   };
 
   return (
@@ -121,88 +138,75 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
 
       {/* Feed */}
       <div className="max-w-2xl mx-auto px-4 mt-6 space-y-4">
-        {isLoading && !isFallback ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 + i * 0.1 }}
-            >
-              <PostSkeleton />
-            </motion.div>
-          ))
-        ) : (
-          apiPosts.map((post, index) => (
-            <motion.div
-              key={post.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 + index * 0.1 }}
-              className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-3xl p-6 hover:border-slate-600/50 transition-all cursor-pointer"
-              onClick={() => navigateTo('post-detail', { post })}
-            >
-              {/* Post Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Ghost className={`w-4 h-4 ${post.moodColor}`} />
-                  <Badge variant="outline" className={`${post.moodColor} border-current/30 bg-current/10`}>
-                    {post.mood}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2 text-slate-500 text-sm">
-                  <Clock className="w-3 h-3" />
-                  <span>{post.timestamp}</span>
-                </div>
+        {allPosts.map((post, index) => (
+          <motion.div
+            key={post.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 + index * 0.05 }}
+            className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-3xl p-6 hover:border-slate-600/50 transition-all cursor-pointer"
+            onClick={() => navigateTo('post-detail', { post })}
+          >
+            {/* Post Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Ghost className={`w-4 h-4 ${post.moodColor}`} />
+                <Badge variant="outline" className={`${post.moodColor} border-current/30 bg-current/10`}>
+                  {post.mood}
+                </Badge>
               </div>
-
-              {/* Content */}
-              <p className="text-slate-200 leading-relaxed mb-4">{post.content}</p>
-
-              {/* Expiration Timer */}
-              <div className="flex items-center gap-2 mb-4">
-                <div className="flex-1 h-1 bg-slate-700/50 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
-                    initial={{ width: '100%' }}
-                    animate={{ width: '60%' }}
-                    transition={{ duration: 2 }}
-                  />
-                </div>
-                <span className="text-slate-500 text-xs">expires in {post.expiresIn}</span>
+              <div className="flex items-center gap-2 text-slate-500 text-sm">
+                <Clock className="w-3 h-3" />
+                <span>{post.timestamp}</span>
               </div>
+            </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-6">
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEmpathy(post.id, localEmpathy[post.id] ?? post.empathy);
-                  }}
-                  className={`flex items-center gap-2 transition-colors ${
-                    likedPosts.has(post.id)
-                      ? 'text-pink-400'
-                      : 'text-slate-400 hover:text-pink-400'
-                  }`}
-                >
-                  <Heart className="w-5 h-5" />
-                  <span>{localEmpathy[post.id] ?? post.empathy}</span>
-                </motion.button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigateTo('reply', { post });
-                  }}
-                  className="flex items-center gap-2 text-slate-400 hover:text-purple-400 transition-colors"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <span>{post.replies}</span>
-                </button>
+            {/* Content */}
+            <p className="text-slate-200 leading-relaxed mb-4">{post.content}</p>
+
+            {/* Expiration Timer */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex-1 h-1 bg-slate-700/50 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                  initial={{ width: '100%' }}
+                  animate={{ width: '60%' }}
+                  transition={{ duration: 2 }}
+                />
               </div>
-            </motion.div>
-          ))
-        )}
+              <span className="text-slate-500 text-xs">expires in {post.expiresIn}</span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-6">
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEmpathy(post.id, displayCount(post));
+                }}
+                className={`flex items-center gap-2 transition-colors ${
+                  likedPosts.has(post.id)
+                    ? 'text-pink-400'
+                    : 'text-slate-400 hover:text-pink-400'
+                }`}
+              >
+                <Heart className="w-5 h-5" />
+                <span>{displayCount(post)}</span>
+              </motion.button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigateTo('reply', { post });
+                }}
+                className="flex items-center gap-2 text-slate-400 hover:text-purple-400 transition-colors"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span>{post.replies}</span>
+              </button>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
       {/* Floating Action Button */}

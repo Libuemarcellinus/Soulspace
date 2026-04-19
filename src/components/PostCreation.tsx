@@ -3,36 +3,52 @@ import { motion } from 'motion/react';
 import { X, Type, Mic, Palette, Send, Meh } from 'lucide-react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
+import { toast } from 'sonner';
 import { useApi } from '../hooks/useApi';
 import { moodsApi, soulsApi } from '../lib/api';
 import { mockMoods, mapApiMood } from '../lib/mockData';
 
 interface PostCreationProps {
-  navigateTo: (screen: string) => void;
+  navigateTo: (screen: string, data?: any) => void;
+  circle?: any; // if set, post goes to this circle instead of the main feed
 }
 
-export default function PostCreation({ navigateTo }: PostCreationProps) {
+export default function PostCreation({ navigateTo, circle }: PostCreationProps) {
   const [content, setContent] = useState('');
-  const [selectedMoodId, setSelectedMoodId] = useState<string | null>(null);
+  const [selectedMoodLabel, setSelectedMoodLabel] = useState<string | null>(null);
   const [inputMode, setInputMode] = useState<'text' | 'voice' | 'doodle'>('text');
   const [isPosting, setIsPosting] = useState(false);
 
-  const { data: rawMoods, isLoading: moodsLoading } = useApi(() => moodsApi.getActive(), []);
-  const moods = (rawMoods ?? mockMoods).map(mapApiMood);
+  const { data: rawMoods } = useApi(() => moodsApi.getActive(), []);
+  const moods = (Array.isArray(rawMoods) && rawMoods.length > 0 ? rawMoods : mockMoods).map(mapApiMood);
 
-  const selectedMood = moods.find(m => m.id === selectedMoodId) ?? null;
+  // Circle posts don't require a mood — only main feed posts do
+  const selectedMood = moods.find(m => m.label === selectedMoodLabel) ?? null;
+  const canPost = circle
+    ? !!(content.trim() && !isPosting)
+    : !!(content.trim() && selectedMood && !isPosting);
 
   const handlePost = async () => {
-    if (!content.trim() || selectedMoodId === null) return;
+    if (!canPost) return;
     setIsPosting(true);
     try {
-      await soulsApi.create(content.trim(), selectedMoodId);
+      if (circle) {
+        await soulsApi.createCircleSoul(content.trim(), circle.id);
+        navigateTo('circle-feed', { circle });
+      } else {
+        if (!selectedMood) return;
+        await soulsApi.create(content.trim(), selectedMood.id);
+        navigateTo('home');
+      }
     } catch {
-      // silently fall through — navigate home regardless
-    } finally {
+      toast.error('Failed to share your soul. Please try again.');
       setIsPosting(false);
-      navigateTo('home');
     }
+  };
+
+  const handleCancel = () => {
+    if (circle) navigateTo('circle-feed', { circle });
+    else navigateTo('home');
   };
 
   return (
@@ -48,15 +64,17 @@ export default function PostCreation({ navigateTo }: PostCreationProps) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigateTo('home')}
+              onClick={handleCancel}
               className="text-slate-400 hover:text-slate-200"
             >
               <X className="w-6 h-6" />
             </Button>
-            <h1 className="text-slate-100">Share Your Soul</h1>
+            <h1 className="text-slate-100">
+              {circle ? `Post in ${circle.name}` : 'Share Your Soul'}
+            </h1>
             <Button
               onClick={handlePost}
-              disabled={!content.trim() || selectedMoodId === null || isPosting}
+              disabled={!canPost}
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50"
             >
               <Send className="w-4 h-4 mr-2" />
@@ -67,41 +85,36 @@ export default function PostCreation({ navigateTo }: PostCreationProps) {
       </motion.div>
 
       <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Mood Selector */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <label className="block text-slate-300 mb-3">How are you feeling?</label>
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {moodsLoading && !rawMoods
-              ? Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="p-4 rounded-2xl border-2 bg-slate-800/40 border-slate-700/50 animate-pulse h-20"
-                  />
-                ))
-              : moods.map((mood) => {
-                  const Icon = mood.icon ?? Meh;
-                  return (
-                    <motion.button
-                      key={mood.id}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setSelectedMoodId(mood.id)}
-                      className={`p-4 rounded-2xl border-2 transition-all ${
-                        selectedMoodId === mood.id
-                          ? mood.color
-                          : 'bg-slate-800/40 text-slate-400 border-slate-700/50 hover:border-slate-600/50'
-                      }`}
-                    >
-                      <Icon className="w-6 h-6 mx-auto mb-2" />
-                      <span className="text-sm">{mood.label}</span>
-                    </motion.button>
-                  );
-                })}
-          </div>
-        </motion.div>
+        {/* Mood Selector — only for main feed posts */}
+        {!circle && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <label className="block text-slate-300 mb-3">How are you feeling?</label>
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              {moods.map((mood) => {
+                const Icon = mood.icon ?? Meh;
+                return (
+                  <motion.button
+                    key={mood.id}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setSelectedMoodLabel(mood.label)}
+                    className={`p-4 rounded-2xl border-2 transition-all ${
+                      selectedMoodLabel === mood.label
+                        ? mood.color
+                        : 'bg-slate-800/40 text-slate-400 border-slate-700/50 hover:border-slate-600/50'
+                    }`}
+                  >
+                    <Icon className="w-6 h-6 mx-auto mb-2" />
+                    <span className="text-sm">{mood.label}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
         {/* Input Mode Toggle */}
         <motion.div

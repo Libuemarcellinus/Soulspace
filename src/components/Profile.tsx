@@ -9,7 +9,7 @@ import { mockSouls, mapApiSoul } from '../lib/mockData';
 import ReconnectingBanner from './ReconnectingBanner';
 
 interface ProfileProps {
-  navigateTo: (screen: string) => void;
+  navigateTo: (screen: string, data?: any) => void;
 }
 
 const badges = [
@@ -183,7 +183,8 @@ export default function Profile({ navigateTo }: ProfileProps) {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7 + index * 0.05 }}
-                  className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4"
+                  className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 cursor-pointer hover:border-slate-600/50 transition-all"
+                  onClick={() => navigateTo('post-detail', { post })}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <Badge variant="outline" className={`${post.moodColor} border-current/30 bg-current/10 text-xs`}>

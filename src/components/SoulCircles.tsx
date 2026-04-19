@@ -14,8 +14,9 @@ interface SoulCirclesProps {
 export default function SoulCircles({ navigateTo }: SoulCirclesProps) {
   const { data: rawCircles, isLoading, error } = useApi(() => circlesApi.getActive(), []);
   const isFallback = !isLoading && error !== null;
-  const circlesArray = Array.isArray(rawCircles) ? rawCircles : null;
-  const circles = (circlesArray ?? (isFallback ? mockCircles : [])).map(mapApiCircle);
+  const realCircles = Array.isArray(rawCircles) ? rawCircles.map(mapApiCircle) : [];
+  // Show mock immediately; swap to real when it arrives (circles are a fixed list, not a stream)
+  const circles = !isLoading && realCircles.length > 0 ? realCircles : mockCircles.map(mapApiCircle);
 
   const trendingCircle = circles[1] ?? circles[0];
 
@@ -61,20 +62,7 @@ export default function SoulCircles({ navigateTo }: SoulCirclesProps) {
         </motion.div>
 
         {/* Trending Circle */}
-        {isLoading && !isFallback ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mb-6"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-4 h-4 text-purple-400" />
-              <span className="text-slate-400 text-sm">Trending Now</span>
-            </div>
-            <div className="w-full bg-slate-800/40 border border-slate-700/50 rounded-3xl p-6 animate-pulse h-32" />
-          </motion.div>
-        ) : trendingCircle ? (
+        {trendingCircle && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -111,20 +99,13 @@ export default function SoulCircles({ navigateTo }: SoulCirclesProps) {
               </div>
             </button>
           </motion.div>
-        ) : null}
+        )}
 
         {/* All Circles */}
         <div className="space-y-4">
           <h2 className="text-slate-300 mb-4">All Circles</h2>
 
-          {isLoading && !isFallback
-            ? Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 animate-pulse h-20"
-                />
-              ))
-            : circles.map((circle, index) => {
+          {circles.map((circle, index) => {
                 const Icon = circle.icon;
                 return (
                   <motion.button

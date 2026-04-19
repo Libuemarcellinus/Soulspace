@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/circles/join?circle_id=test\" -X POST -H \"Authorization: Bearer fake_token\")",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/circles/leave?circle_id=test\" -X POST -H \"Authorization: Bearer fake_token\")",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/circles/members\" -H \"Authorization: Bearer fake_token\")",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/circle_soul?id=test\" -H \"Authorization: Bearer fake_token\")",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/circle_soul\" -X POST -H \"Authorization: Bearer fake_token\" -H \"Content-Type: application/json\" -d '{\"soul\":\"test\",\"circle_id\":\"test\"}')",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/like?id=test\" -X POST -H \"Authorization: Bearer fake_token\")",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/replies?id=test\" -H \"Authorization: Bearer fake_token\")",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/replies?id=test\" -X POST -H \"Authorization: Bearer fake_token\" -H \"Content-Type: application/json\" -d '{\"reply\":\"test\",\"mood_id\":\"test\"}')",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/report?id=test\" -X POST -H \"Authorization: Bearer fake_token\" -H \"Content-Type: application/json\" -d '{\"reason\":\"test\"}')",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/average\" -H \"Authorization: Bearer fake_token\")",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/private\" -H \"Authorization: Bearer fake_token\")",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/daily/prompt\" -H \"Authorization: Bearer fake_token\")",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/daily/submit\" -X POST -H \"Authorization: Bearer fake_token\" -H \"Content-Type: application/json\" -d '{\"prompt_id\":\"test\",\"content\":\"test\",\"visibility\":\"public\"}')",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/unlike?id=test\" -X POST -H \"Authorization: Bearer fake_token\")",
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/like?id=test\" -X DELETE -H \"Authorization: Bearer fake_token\")"
+    ]
+  }
+}

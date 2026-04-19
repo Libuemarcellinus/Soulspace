@@ -25,7 +25,9 @@ const timeData = [
 export default function MoodPulse({ navigateTo }: MoodPulseProps) {
   const { data: rawAverage, isLoading, error } = useApi(() => soulsApi.getAverage(), []);
   const isFallback = !isLoading && error !== null;
-  const globalMoods = mapMoodAverage(rawAverage ?? (isFallback ? mockMoodAverage : {}));
+  const hasAvgData = rawAverage != null && typeof rawAverage === 'object' && !Array.isArray(rawAverage) && Object.keys(rawAverage as object).length > 0;
+  // Always show data — mock immediately, real data when it arrives
+  const globalMoods = mapMoodAverage(hasAvgData ? rawAverage as Record<string, number> : mockMoodAverage);
   const dominantMood = globalMoods[0]?.mood ?? 'Hopeful';
 
   return (
@@ -88,9 +90,7 @@ export default function MoodPulse({ navigateTo }: MoodPulseProps) {
           </div>
           <div className="text-center">
             <div className="text-4xl text-slate-100 mb-2">
-              {isLoading && !isFallback ? (
-                <div className="h-10 w-32 bg-slate-700 rounded animate-pulse mx-auto" />
-              ) : dominantMood}
+              {dominantMood}
             </div>
             <p className="text-slate-400">is the dominant emotion right now</p>
           </div>
@@ -104,47 +104,33 @@ export default function MoodPulse({ navigateTo }: MoodPulseProps) {
           className="mb-6"
         >
           <h3 className="text-slate-300 mb-4">Current Distribution</h3>
-          {isLoading && !isFallback ? (
-            <div className="space-y-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="w-20 h-4 bg-slate-700 rounded" />
-                    <div className="w-8 h-4 bg-slate-700 rounded" />
+          <div className="space-y-4">
+            {globalMoods.map((item, index) => (
+              <motion.div
+                key={item.mood}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 + index * 0.05 }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-200">{item.mood}</span>
+                    {item.trend === 'up' && <TrendingUp className="w-4 h-4 text-emerald-400" />}
+                    {item.trend === 'down' && <TrendingDown className="w-4 h-4 text-red-400" />}
                   </div>
-                  <div className="h-2 bg-slate-800/40 rounded-full" />
+                  <span className={item.textColor}>{item.percentage}%</span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {globalMoods.map((item, index) => (
-                <motion.div
-                  key={item.mood}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + index * 0.05 }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-200">{item.mood}</span>
-                      {item.trend === 'up' && <TrendingUp className="w-4 h-4 text-emerald-400" />}
-                      {item.trend === 'down' && <TrendingDown className="w-4 h-4 text-red-400" />}
-                    </div>
-                    <span className={item.textColor}>{item.percentage}%</span>
-                  </div>
-                  <div className="h-2 bg-slate-800/40 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${item.percentage}%` }}
-                      transition={{ delay: 0.5 + index * 0.1, duration: 0.8 }}
-                      className={`h-full ${item.color} rounded-full`}
-                    />
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
+                <div className="h-2 bg-slate-800/40 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${item.percentage}%` }}
+                    transition={{ delay: 0.5 + index * 0.1, duration: 0.8 }}
+                    className={`h-full ${item.color} rounded-full`}
+                  />
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
 
         {/* 24-Hour Trends */}
