@@ -64,17 +64,29 @@ export default function CircleFeed({ circle, navigateTo }: CircleFeedProps) {
   const blurPreviews = localStorage.getItem('soulspace_setting_blurPreviews') === 'true';
 
   const handleEmpathy = async (postId: string, currentCount: number) => {
-    if (likedPosts.has(postId)) return;
     if (postId.startsWith('mock-')) return;
-    setLikedPosts(prev => new Set(prev).add(postId));
-    setCountOverrides(prev => ({ ...prev, [postId]: currentCount + 1 }));
-    persistLike(postId);
+    const alreadyLiked = likedPosts.has(postId);
+    if (alreadyLiked) {
+      setLikedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
+      setCountOverrides(prev => ({ ...prev, [postId]: currentCount - 1 }));
+      revertLike(postId);
+    } else {
+      setLikedPosts(prev => new Set(prev).add(postId));
+      setCountOverrides(prev => ({ ...prev, [postId]: currentCount + 1 }));
+      persistLike(postId);
+    }
     try {
       await soulsApi.like(postId);
     } catch {
-      setLikedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
-      setCountOverrides(prev => { const next = { ...prev }; delete next[postId]; return next; });
-      revertLike(postId);
+      if (alreadyLiked) {
+        setLikedPosts(prev => new Set(prev).add(postId));
+        setCountOverrides(prev => ({ ...prev, [postId]: currentCount }));
+        persistLike(postId);
+      } else {
+        setLikedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
+        setCountOverrides(prev => ({ ...prev, [postId]: currentCount }));
+        revertLike(postId);
+      }
     }
   };
 

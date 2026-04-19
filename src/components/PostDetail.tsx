@@ -32,16 +32,29 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
   }
 
   const handleLike = async () => {
-    if (liked) return;
-    setLiked(true);
-    setEmpathyCount((c: number) => c + 1);
-    persistLike(post.id);
-    try {
-      await soulsApi.like(post.id);
-    } catch {
+    const alreadyLiked = liked;
+    if (alreadyLiked) {
       setLiked(false);
       setEmpathyCount((c: number) => c - 1);
       revertLike(post.id);
+    } else {
+      setLiked(true);
+      setEmpathyCount((c: number) => c + 1);
+      persistLike(post.id);
+    }
+    try {
+      await soulsApi.like(post.id);
+    } catch {
+      // Revert on failure
+      if (alreadyLiked) {
+        setLiked(true);
+        setEmpathyCount((c: number) => c + 1);
+        persistLike(post.id);
+      } else {
+        setLiked(false);
+        setEmpathyCount((c: number) => c - 1);
+        revertLike(post.id);
+      }
     }
   };
 

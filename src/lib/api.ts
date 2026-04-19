@@ -142,7 +142,7 @@ export const soulsApi = {
   getCircleSouls: (id: string) =>
     request<unknown>(`souls/circle_soul?id=${id}`).then(d => unwrapList<ApiSoul>(d, 'souls')),
   like: (id: string) =>
-    request<void>(`souls/like?id=${id}`, { method: 'POST' }),
+    request<{ message?: string }>(`souls/like?id=${id}`, { method: 'POST' }),
   report: (id: string, reason: string) =>
     request<void>(`souls/report?id=${id}`, {
       method: 'POST',
