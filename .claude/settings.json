@@ -15,7 +15,10 @@
       "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/daily/prompt\" -H \"Authorization: Bearer fake_token\")",
       "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/daily/submit\" -X POST -H \"Authorization: Bearer fake_token\" -H \"Content-Type: application/json\" -d '{\"prompt_id\":\"test\",\"content\":\"test\",\"visibility\":\"public\"}')",
       "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/unlike?id=test\" -X POST -H \"Authorization: Bearer fake_token\")",
-      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/like?id=test\" -X DELETE -H \"Authorization: Bearer fake_token\")"
+      "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/like?id=test\" -X DELETE -H \"Authorization: Bearer fake_token\")",
+      "Bash(git rm *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
