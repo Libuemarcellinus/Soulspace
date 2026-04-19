@@ -20,11 +20,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`API ${res.status}: ${text}`);
   }
-  // 204 No Content or empty body — don't attempt JSON parse
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   if (!text) return undefined as T;
-  return JSON.parse(text) as T;
+  try { return JSON.parse(text) as T; }
+  catch { return undefined as T; } // non-JSON body (plain text "OK" etc.) — treat as success
 }
 
 // Unwraps bare arrays OR common server wrapper shapes like { data:[...] }, { moods:[...] }, etc.
