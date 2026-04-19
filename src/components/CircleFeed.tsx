@@ -6,7 +6,7 @@ import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { soulsApi, circlesApi } from '../lib/api';
 import { mockCircleSouls, mapApiSoul } from '../lib/mockData';
-import { getAllLiked, persistLike, revertLike, getStoredCount } from '../lib/likeStorage';
+import { getAllLiked, persistLike, revertLike } from '../lib/likeStorage';
 import ReconnectingBanner from './ReconnectingBanner';
 
 interface CircleFeedProps {
@@ -54,26 +54,26 @@ export default function CircleFeed({ circle, navigateTo }: CircleFeedProps) {
 
   // Like state — seeded from localStorage so it persists across navigation
   const [likedPosts, setLikedPosts] = useState<Set<string>>(() => getAllLiked());
+  const [countOverrides, setCountOverrides] = useState<Record<string, number>>({});
   const blurPreviews = localStorage.getItem('soulspace_setting_blurPreviews') === 'true';
 
   const handleEmpathy = async (postId: string, currentCount: number) => {
     if (likedPosts.has(postId)) return;
     if (postId.startsWith('mock-')) return;
-    const newCount = currentCount + 1;
     setLikedPosts(prev => new Set(prev).add(postId));
-    persistLike(postId, newCount);
+    setCountOverrides(prev => ({ ...prev, [postId]: currentCount + 1 }));
+    persistLike(postId);
     try {
       await soulsApi.like(postId);
     } catch {
       setLikedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
+      setCountOverrides(prev => { const next = { ...prev }; delete next[postId]; return next; });
       revertLike(postId);
     }
   };
 
-  const displayCount = (post: { id: string; empathy: number }) => {
-    const stored = getStoredCount(post.id);
-    return stored !== null ? Math.max(post.empathy, stored) : post.empathy;
-  };
+  const displayCount = (post: { id: string; empathy: number }) =>
+    countOverrides[post.id] ?? post.empathy;
 
   const handleJoinLeave = async () => {
     setJoiningLoading(true);

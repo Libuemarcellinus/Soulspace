@@ -6,7 +6,7 @@ import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { soulsApi } from '../lib/api';
 import { mockSouls, mapApiSoul } from '../lib/mockData';
-import { getAllLiked, persistLike, revertLike, getStoredCount } from '../lib/likeStorage';
+import { getAllLiked, persistLike, revertLike } from '../lib/likeStorage';
 import ReconnectingBanner from './ReconnectingBanner';
 
 interface HomeFeedProps {
@@ -54,27 +54,27 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
       : mockPostsMapped;
 
   const [likedPosts, setLikedPosts] = useState<Set<string>>(() => getAllLiked());
+  const [countOverrides, setCountOverrides] = useState<Record<string, number>>({});
   const blurPreviews = localStorage.getItem('soulspace_setting_blurPreviews') === 'true';
 
   const handleEmpathy = async (postId: string, currentCount: number) => {
     if (likedPosts.has(postId)) return;
     if (postId.startsWith('mock-')) return;
-    const newCount = currentCount + 1;
     setLikedPosts(prev => new Set(prev).add(postId));
-    persistLike(postId, newCount);
+    setCountOverrides(prev => ({ ...prev, [postId]: currentCount + 1 }));
+    persistLike(postId);
     try {
       await soulsApi.like(postId);
     } catch {
       setLikedPosts(prev => { const next = new Set(prev); next.delete(postId); return next; });
+      setCountOverrides(prev => { const next = { ...prev }; delete next[postId]; return next; });
       revertLike(postId);
     }
   };
 
-  // Show whichever count is higher: API count or our locally-stored liked count
-  const displayCount = (post: { id: string; empathy: number }) => {
-    const stored = getStoredCount(post.id);
-    return stored !== null ? Math.max(post.empathy, stored) : post.empathy;
-  };
+  // In-memory override for the current session; server count is truth on next load
+  const displayCount = (post: { id: string; empathy: number }) =>
+    countOverrides[post.id] ?? post.empathy;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 pb-24">
