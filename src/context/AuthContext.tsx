@@ -26,7 +26,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedToken = localStorage.getItem('soulspace_token');
     const storedUser = localStorage.getItem('soulspace_user');
-    if (!storedToken || !storedUser) {
+    // No token = logged out; soulspace_user may still exist (kept for login ID comparison)
+    if (!storedToken) {
+      setIsLoading(false);
+      return;
+    }
+    if (!storedUser) {
       setIsLoading(false);
       return;
     }
@@ -49,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const msg = e instanceof Error ? e.message : '';
         if (/401|403|invalid token/i.test(msg)) {
           localStorage.removeItem('soulspace_token');
-          localStorage.removeItem('soulspace_user');
+          // Keep soulspace_user for ID comparison on next login
           setToken(null);
           setUser(null);
         }
@@ -65,21 +70,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (username: string, password: string) => {
-    clearAllLikes();
+    // Only wipe likes if a different user is logging in
+    const storedUser = localStorage.getItem('soulspace_user');
+    let storedId: number | null = null;
+    try { storedId = storedUser ? JSON.parse(storedUser)?.id : null; } catch { /* */ }
     const data = await authApi.login(username, password);
+    if (storedId !== data.id) clearAllLikes();
     persist(data);
   };
 
   const register = async (username: string, password: string) => {
-    clearAllLikes();
+    clearAllLikes(); // always fresh for a brand-new account
     const data = await authApi.register(username, password);
     persist(data);
   };
 
   const logout = () => {
-    clearAllLikes();
+    // Keep soulspace_user so the next login can compare IDs and preserve likes for same user
     localStorage.removeItem('soulspace_token');
-    localStorage.removeItem('soulspace_user');
     setToken(null);
     setUser(null);
   };
