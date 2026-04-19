@@ -77,7 +77,8 @@ export interface ApiSoul {
   mood?: string;
   mood_icon?: string;
   created_at?: string;
-  like_count?: number;
+  likes?: number;      // actual server field
+  like_count?: number; // kept for mock data compatibility
   reply_count?: number;
   expires_at?: string;
 }

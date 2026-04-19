@@ -195,7 +195,7 @@ export function mapApiSoul(soul: ApiSoul) {
     moodColor: moodTextColorMap[key] ?? 'text-slate-400',
     content: soul.soul,
     timestamp: formatTimeAgo(soul.created_at),
-    empathy: soul.like_count ?? 0,
+    empathy: soul.likes ?? soul.like_count ?? 0,
     replies: soul.reply_count ?? 0,
     expiresIn: formatExpiresIn(soul.expires_at),
   };
