@@ -1,7 +1,7 @@
 {
   "outputDirectory": "dist",
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/" }
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://soulspace-ye8o.onrender.com/api/:path*" },
+    { "source": "/(.*)", "destination": "/" }
   ]
 }

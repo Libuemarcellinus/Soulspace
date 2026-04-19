@@ -58,6 +58,7 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
 
   const handleEmpathy = async (postId: string, currentCount: number) => {
     if (likedPosts.has(postId)) return;
+    if (postId.startsWith('mock-')) return;
     const newCount = currentCount + 1;
     setLikedPosts(prev => new Set(prev).add(postId));
     persistLike(postId, newCount);
