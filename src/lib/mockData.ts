@@ -1,5 +1,5 @@
 import type { ApiMood, ApiSoul, ApiCircle } from './api';
-import { ComponentType } from 'react';
+import React, { ComponentType } from 'react';
 import { Brain, Heart, Moon, Sunrise, Compass, User, Ghost, Frown, Smile, Zap, Meh } from 'lucide-react';
 
 // ── API-shaped fallback data ───────────────────────────────────────────────
@@ -134,6 +134,8 @@ const moodIconMap: Record<string, ComponentType<any>> = {
   grateful: Heart,
   lonely: Meh,
   'just existing': Meh,
+  happy: Smile,
+  cool: Zap,
 };
 
 const moodColorMap: Record<string, string> = {
@@ -143,6 +145,8 @@ const moodColorMap: Record<string, string> = {
   grateful: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
   lonely: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
   'just existing': 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+  happy: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  cool: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
 };
 
 const moodTextColorMap: Record<string, string> = {
@@ -152,6 +156,8 @@ const moodTextColorMap: Record<string, string> = {
   grateful: 'text-pink-400',
   lonely: 'text-indigo-400',
   'just existing': 'text-slate-400',
+  happy: 'text-emerald-400',
+  cool: 'text-cyan-400',
 };
 
 export function mapApiMood(m: ApiMood) {
@@ -273,16 +279,25 @@ function formatMemberCount(count: number): string {
 
 export function mapApiCircle(circle: ApiCircle, index: number) {
   const style = circleStyleMap[circle.circle] ?? defaultCircleStyles[index % defaultCircleStyles.length];
+  const memberCount = circle.member_count ?? 0;
+
+  // Server sends a Cloudinary image URL; wrap it as a renderable component
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const IconComponent: ComponentType<any> = circle.icon?.startsWith('http')
+    ? ({ className }: { className?: string }) =>
+        React.createElement('img', { src: circle.icon, alt: circle.circle, className: `rounded-full object-cover w-full h-full ${className ?? ''}` })
+    : style.icon;
+
   return {
     id: circle.circle_id ?? circle.id ?? '',
     name: circle.circle,
-    icon: style.icon,
+    icon: IconComponent,
     color: style.color,
     gradient: style.gradient,
     border: style.border,
     description: style.description || circle.circle,
-    members: formatMemberCount(circle.member_count),
-    activeNow: Math.max(1, Math.floor(circle.member_count * 0.07)),
+    members: memberCount > 0 ? formatMemberCount(memberCount) : '—',
+    activeNow: Math.max(1, Math.floor(memberCount * 0.07)),
   };
 }
 
@@ -294,6 +309,8 @@ const moodPulseColorMap: Record<string, { color: string; textColor: string }> = 
   grateful: { color: 'bg-pink-500', textColor: 'text-pink-400' },
   overwhelmed: { color: 'bg-blue-500', textColor: 'text-blue-400' },
   lonely: { color: 'bg-indigo-500', textColor: 'text-indigo-400' },
+  happy: { color: 'bg-emerald-500', textColor: 'text-emerald-400' },
+  cool: { color: 'bg-cyan-500', textColor: 'text-cyan-400' },
 };
 
 export function mapMoodAverage(avg: Record<string, number>) {

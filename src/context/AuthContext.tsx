@@ -3,7 +3,7 @@ import { authApi, AuthResponse } from '../lib/api';
 import { clearAllLikes } from '../lib/likeStorage';
 
 interface User {
-  id: number;
+  id: string;
   username: string;
 }
 
@@ -43,26 +43,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       return;
     }
-    // Unblock the UI now — profile check runs in the background
     setIsLoading(false);
-    // Verify token validity in the background; clear session only on explicit auth errors
-    authApi.profile()
-      .then((data) => {
-        setUser({ id: data.id, username: data.username });
-      })
-      .catch((e: unknown) => {
-        const msg = e instanceof Error ? e.message : '';
-        if (/401|403|invalid token/i.test(msg)) {
-          localStorage.removeItem('soulspace_token');
-          // Keep soulspace_user for ID comparison on next login
-          setToken(null);
-          setUser(null);
-        }
-      });
   }, []);
 
   const persist = (data: AuthResponse) => {
-    const u = { id: data.id, username: data.username };
+    const u = { id: data.data.user_id, username: data.data.username };
     localStorage.setItem('soulspace_token', data.token);
     localStorage.setItem('soulspace_user', JSON.stringify(u));
     setToken(data.token);
@@ -72,10 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string) => {
     // Only wipe likes if a different user is logging in
     const storedUser = localStorage.getItem('soulspace_user');
-    let storedId: number | null = null;
+    let storedId: string | null = null;
     try { storedId = storedUser ? JSON.parse(storedUser)?.id : null; } catch { /* */ }
     const data = await authApi.login(username, password);
-    if (storedId !== data.id) clearAllLikes();
+    if (storedId !== data.data.user_id) clearAllLikes();
     persist(data);
   };
 

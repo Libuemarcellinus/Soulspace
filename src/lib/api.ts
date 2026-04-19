@@ -43,8 +43,10 @@ function unwrapList<T>(data: unknown, ...keys: string[]): T[] {
 
 export interface AuthResponse {
   token: string;
-  username: string;
-  id: number;
+  data: {
+    username: string;
+    user_id: string;
+  };
 }
 
 export interface ApiReply {
@@ -63,10 +65,10 @@ export interface ApiDailyPrompt {
 
 export interface ApiMood {
   id?: string;
-  mood_id?: string;   // server may use this as the primary key
+  mood_id?: string;
   mood: string;
-  mood_icon: string;
-  status: string;
+  mood_icon?: string;
+  status?: string;
 }
 
 export interface ApiSoul {
@@ -85,11 +87,11 @@ export interface ApiSoul {
 
 export interface ApiCircle {
   id?: string;
-  circle_id?: string; // server may use this as the primary key
+  circle_id?: string;
   circle: string;
-  icon: string;
-  status: string;
-  member_count: number;
+  icon: string;        // Cloudinary URL from server
+  status?: string;
+  member_count?: number;
 }
 
 // ── Auth ───────────────────────────────────────────────────────────────────
@@ -122,7 +124,11 @@ export const soulsApi = {
     request<unknown>('souls/active').then(d => unwrapList<ApiSoul>(d, 'souls')),
   getPrivate: () =>
     request<unknown>('souls/private').then(d => unwrapList<ApiSoul>(d, 'souls')),
-  getAverage: () => request<Record<string, number>>('souls/average'),
+  getAverage: () =>
+    request<unknown>('souls/average').then(raw => {
+      const arr = unwrapList<{ mood: string; percentage: number }>(raw, 'data');
+      return Object.fromEntries(arr.map(item => [item.mood, item.percentage])) as Record<string, number>;
+    }),
   create: (soul: string, mood_id: string) =>
     request<ApiSoul>('souls/create', {
       method: 'POST',
