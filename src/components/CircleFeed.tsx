@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Heart, MessageCircle, Clock, Ghost, Plus, Compass, TrendingUp, User, UserPlus, UserMinus, Lock } from 'lucide-react';
 import { Button } from './ui/button';
@@ -31,10 +31,16 @@ export default function CircleFeed({ circle, navigateTo }: CircleFeedProps) {
     return null;
   }
 
-  const { data: rawSouls, isLoading, error } = useApi(
+  const { data: rawSouls, isLoading, error, refetch } = useApi(
     () => soulsApi.getCircleSouls(circle.id),
     [circle.id]
   );
+
+  useEffect(() => {
+    const id = setInterval(() => { if (!document.hidden) refetch(); }, 5000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const isFallback = !isLoading && error !== null;
   const realPosts = Array.isArray(rawSouls)
     ? [...rawSouls].sort((a, b) =>

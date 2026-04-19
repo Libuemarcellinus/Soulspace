@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Ghost, Plus, Compass, User, TrendingUp, MessageCircle, Heart, Clock } from 'lucide-react';
 import { Button } from './ui/button';
@@ -38,7 +38,14 @@ function PostSkeleton() {
 }
 
 export default function HomeFeed({ navigateTo }: HomeFeedProps) {
-  const { data: rawSouls, isLoading, error } = useApi(() => soulsApi.getActive(), []);
+  const { data: rawSouls, isLoading, error, refetch } = useApi(() => soulsApi.getActive(), []);
+
+  // Poll every 5 s while the tab is visible so counts update for all viewers
+  useEffect(() => {
+    const id = setInterval(() => { if (!document.hidden) refetch(); }, 5000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const isFallback = !isLoading && error !== null;
   const realPosts = Array.isArray(rawSouls)
     ? [...rawSouls].sort((a, b) =>
