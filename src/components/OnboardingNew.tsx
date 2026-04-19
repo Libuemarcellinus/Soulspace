@@ -157,10 +157,7 @@ export default function OnboardingNew({ navigateTo }: OnboardingNewProps) {
           className="text-center mb-12"
         >
           <motion.div
-            animate={{
-              rotate: [0, 10, -10, 0],
-              scale: [1, 1.1, 1]
-            }}
+            animate={{ scale: [1, 1.08, 1], opacity: [0.85, 1, 0.85] }}
             transition={{
               duration: 2,
               repeat: Infinity,
