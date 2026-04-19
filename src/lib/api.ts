@@ -1,7 +1,4 @@
-const API_BASE = import.meta.env.DEV
-  ? '/api/'
-  : (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-    'https://soulspace-ye8o.onrender.com/api/';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api/';
 
 function getToken(): string | null {
   return localStorage.getItem('soulspace_token');
