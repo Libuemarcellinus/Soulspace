@@ -54,6 +54,7 @@ export default function CircleFeed({ circle, navigateTo }: CircleFeedProps) {
 
   // Like state — seeded from localStorage so it persists across navigation
   const [likedPosts, setLikedPosts] = useState<Set<string>>(() => getAllLiked());
+  const blurPreviews = localStorage.getItem('soulspace_setting_blurPreviews') === 'true';
 
   const handleEmpathy = async (postId: string, currentCount: number) => {
     if (likedPosts.has(postId)) return;
@@ -178,7 +179,9 @@ export default function CircleFeed({ circle, navigateTo }: CircleFeedProps) {
               </div>
             </div>
 
-            <p className="text-slate-200 leading-relaxed mb-4">{post.content}</p>
+            <p className={`text-slate-200 leading-relaxed mb-4 transition-all ${blurPreviews ? 'blur-sm select-none' : ''}`}>
+              {post.content}
+            </p>
 
             <div className="flex items-center gap-2 mb-4">
               <div className="flex-1 h-1 bg-slate-700/50 rounded-full overflow-hidden">

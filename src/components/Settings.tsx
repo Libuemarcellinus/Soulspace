@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Shield, Bell, Eye, Moon, Volume2, HelpCircle, FileText, LogOut, ChevronRight, Ghost } from 'lucide-react';
+import { ArrowLeft, Shield, Bell, Eye, Moon, Volume2, HelpCircle, FileText, LogOut, ChevronRight, Ghost, Lock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import { Separator } from './ui/separator';
@@ -26,16 +26,41 @@ function saveSetting(key: string, value: boolean) {
 }
 
 export default function Settings({ navigateTo }: SettingsProps) {
-  const [ghostMode, setGhostMode] = useState(() => loadSetting('ghostMode', true));
-  const [notifications, setNotifications] = useState(() => loadSetting('notifications', true));
+  const [notifications, setNotifications] = useState(() => loadSetting('notifications', false));
+  const [notifStatus, setNotifStatus] = useState<'idle' | 'denied'>('idle');
   const [blurPreviews, setBlurPreviews] = useState(() => loadSetting('blurPreviews', false));
-  const [darkMode, setDarkMode] = useState(() => loadSetting('darkMode', true));
-  const [soundEffects, setSoundEffects] = useState(() => loadSetting('soundEffects', true));
   const { logout, user } = useAuth();
 
   const toggle = (key: string, setter: (v: boolean) => void, value: boolean) => {
     setter(value);
     saveSetting(key, value);
+  };
+
+  const handleNotificationsToggle = async (value: boolean) => {
+    if (!value) {
+      toggle('notifications', setNotifications, false);
+      return;
+    }
+    if (!('Notification' in window)) {
+      toggle('notifications', setNotifications, false);
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      setNotifStatus('denied');
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      toggle('notifications', setNotifications, true);
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      toggle('notifications', setNotifications, true);
+      setNotifStatus('idle');
+    } else {
+      setNotifStatus('denied');
+      toggle('notifications', setNotifications, false);
+    }
   };
 
   const handleSignOut = () => {
@@ -94,26 +119,34 @@ export default function Settings({ navigateTo }: SettingsProps) {
         >
           <h2 className="text-slate-300 mb-4">Privacy & Anonymity</h2>
           <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl overflow-hidden">
-            <div className="p-4 flex items-center justify-between">
+            {/* Ghost Mode — always on, locked */}
+            <div className="p-4 flex items-center justify-between opacity-70">
               <div className="flex items-center gap-3">
                 <Shield className="w-5 h-5 text-purple-400" />
                 <div>
                   <p className="text-slate-200">Ghost Mode</p>
-                  <p className="text-slate-500 text-sm">Stay completely anonymous</p>
+                  <p className="text-slate-500 text-sm">Always on — SoulSpace is anonymous by design</p>
                 </div>
               </div>
-              <Switch checked={ghostMode} onCheckedChange={(v) => toggle('ghostMode', setGhostMode, v)} />
+              <div className="flex items-center gap-2">
+                <Lock className="w-3 h-3 text-slate-500" />
+                <span className="text-xs text-purple-400">Always On</span>
+              </div>
             </div>
             <Separator className="bg-slate-700/50" />
+            {/* Blur Previews — functional */}
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Eye className="w-5 h-5 text-purple-400" />
                 <div>
                   <p className="text-slate-200">Blur Previews</p>
-                  <p className="text-slate-500 text-sm">Hide content until opened</p>
+                  <p className="text-slate-500 text-sm">Hide post content in feed until opened</p>
                 </div>
               </div>
-              <Switch checked={blurPreviews} onCheckedChange={(v) => toggle('blurPreviews', setBlurPreviews, v)} />
+              <Switch
+                checked={blurPreviews}
+                onCheckedChange={(v) => toggle('blurPreviews', setBlurPreviews, v)}
+              />
             </div>
           </div>
         </motion.div>
@@ -132,10 +165,17 @@ export default function Settings({ navigateTo }: SettingsProps) {
                 <Bell className="w-5 h-5 text-purple-400" />
                 <div>
                   <p className="text-slate-200">Push Notifications</p>
-                  <p className="text-slate-500 text-sm">Get notified of replies</p>
+                  <p className="text-slate-500 text-sm">
+                    {notifStatus === 'denied'
+                      ? 'Blocked by browser — enable in site settings'
+                      : 'Get notified of replies and echoes'}
+                  </p>
                 </div>
               </div>
-              <Switch checked={notifications} onCheckedChange={(v) => toggle('notifications', setNotifications, v)} />
+              <Switch
+                checked={notifications}
+                onCheckedChange={handleNotificationsToggle}
+              />
             </div>
           </div>
         </motion.div>
@@ -149,18 +189,23 @@ export default function Settings({ navigateTo }: SettingsProps) {
         >
           <h2 className="text-slate-300 mb-4">Appearance</h2>
           <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl overflow-hidden">
-            <div className="p-4 flex items-center justify-between">
+            {/* Dark Mode — locked */}
+            <div className="p-4 flex items-center justify-between opacity-70">
               <div className="flex items-center gap-3">
                 <Moon className="w-5 h-5 text-purple-400" />
                 <div>
                   <p className="text-slate-200">Dark Mode</p>
-                  <p className="text-slate-500 text-sm">Easy on the eyes</p>
+                  <p className="text-slate-500 text-sm">SoulSpace only supports dark mode</p>
                 </div>
               </div>
-              <Switch checked={darkMode} onCheckedChange={(v) => toggle('darkMode', setDarkMode, v)} />
+              <div className="flex items-center gap-2">
+                <Lock className="w-3 h-3 text-slate-500" />
+                <span className="text-xs text-purple-400">Always On</span>
+              </div>
             </div>
             <Separator className="bg-slate-700/50" />
-            <div className="p-4 flex items-center justify-between">
+            {/* Sound Effects — coming soon */}
+            <div className="p-4 flex items-center justify-between opacity-50">
               <div className="flex items-center gap-3">
                 <Volume2 className="w-5 h-5 text-purple-400" />
                 <div>
@@ -168,7 +213,7 @@ export default function Settings({ navigateTo }: SettingsProps) {
                   <p className="text-slate-500 text-sm">Calming ambient sounds</p>
                 </div>
               </div>
-              <Switch checked={soundEffects} onCheckedChange={(v) => toggle('soundEffects', setSoundEffects, v)} />
+              <span className="text-xs text-slate-500 border border-slate-600/50 rounded-full px-2 py-0.5">Soon</span>
             </div>
           </div>
         </motion.div>
