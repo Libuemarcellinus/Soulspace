@@ -1,9 +1,10 @@
 {
   "outputDirectory": "dist",
+  "functions": {
+    "api/[...path].js": { "runtime": "nodejs18.x" }
+  },
   "rewrites": [
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/"
-    }
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/" }
   ]
 }

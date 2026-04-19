@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authApi, AuthResponse } from '../lib/api';
+import { clearAllLikes } from '../lib/likeStorage';
 
 interface User {
   id: number;
@@ -64,16 +65,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (username: string, password: string) => {
+    clearAllLikes();
     const data = await authApi.login(username, password);
     persist(data);
   };
 
   const register = async (username: string, password: string) => {
+    clearAllLikes();
     const data = await authApi.register(username, password);
     persist(data);
   };
 
   const logout = () => {
+    clearAllLikes();
     localStorage.removeItem('soulspace_token');
     localStorage.removeItem('soulspace_user');
     setToken(null);

@@ -58,3 +58,9 @@ export function getStoredCount(id: string): number | null {
   const counts = getCounts();
   return counts[id] ?? null;
 }
+
+export function clearAllLikes() {
+  localStorage.removeItem(IDS_KEY);
+  localStorage.removeItem(COUNTS_KEY);
+  localStorage.removeItem(VERSION_KEY);
+}
