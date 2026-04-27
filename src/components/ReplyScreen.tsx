@@ -25,7 +25,7 @@ export default function ReplyScreen({ post, navigateTo }: ReplyScreenProps) {
     if (!reply.trim()) return;
     setIsSending(true);
     try {
-      await soulsApi.createReply(post.id, reply.trim(), '');
+      await soulsApi.createReply(post.id, reply.trim());
       navigateTo('post-detail', { post });
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';

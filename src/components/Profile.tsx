@@ -4,8 +4,8 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
-import { soulsApi } from '../lib/api';
-import { mockSouls, mapApiSoul } from '../lib/mockData';
+import { soulsApi, circlesApi } from '../lib/api';
+import { mockSouls, mapApiSoul, mapApiCircle } from '../lib/mockData';
 import ReconnectingBanner from './ReconnectingBanner';
 
 interface ProfileProps {
@@ -24,9 +24,11 @@ const badges = [
 export default function Profile({ navigateTo }: ProfileProps) {
   const { user } = useAuth();
   const { data: rawSouls, isLoading, error } = useApi(() => soulsApi.getPrivate(), []);
+  const { data: rawCircles, isLoading: circlesLoading } = useApi(() => circlesApi.myCircles(), []);
   const isFallback = !isLoading && error !== null;
   const soulsArray = Array.isArray(rawSouls) ? rawSouls : null;
   const mySouls = (soulsArray ?? (isFallback ? mockSouls.slice(0, 3) : [])).map(mapApiSoul);
+  const myCircles = Array.isArray(rawCircles) ? rawCircles.map((c, i) => mapApiCircle(c, i)) : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 pb-24">
@@ -151,6 +153,49 @@ export default function Profile({ navigateTo }: ProfileProps) {
               </motion.div>
             ))}
           </div>
+        </motion.div>
+
+        {/* My Circles */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="mt-6"
+        >
+          <h3 className="text-slate-300 mb-4">My Circles</h3>
+          {circlesLoading ? (
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex-shrink-0 w-28 h-20 bg-slate-800/40 border border-slate-700/50 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          ) : myCircles.length === 0 ? (
+            <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 text-center">
+              <Compass className="w-6 h-6 text-slate-600 mx-auto mb-2" />
+              <p className="text-slate-500 text-sm">No circles joined yet</p>
+            </div>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {myCircles.map((circle, index) => {
+                const Icon = circle.icon;
+                return (
+                  <motion.button
+                    key={circle.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.55 + index * 0.05 }}
+                    onClick={() => navigateTo('circle-feed', { circle })}
+                    className={`flex-shrink-0 flex flex-col items-center gap-2 bg-gradient-to-br ${circle.gradient} border ${circle.border} rounded-2xl p-3 w-24 hover:opacity-90 transition-opacity`}
+                  >
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${circle.color} flex items-center justify-center`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-slate-300 text-xs text-center leading-tight line-clamp-2">{circle.name}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          )}
         </motion.div>
 
         {/* Your Souls */}

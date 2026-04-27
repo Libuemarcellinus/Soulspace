@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Ghost, Plus, Compass, User, TrendingUp, MessageCircle, Heart, Clock } from 'lucide-react';
+import { Ghost, Plus, Compass, User, TrendingUp, MessageCircle, Heart, Clock, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
@@ -37,8 +37,39 @@ function PostSkeleton() {
   );
 }
 
+const PAGE_SIZE = 20;
+
 export default function HomeFeed({ navigateTo }: HomeFeedProps) {
-  const { data: rawSouls, isLoading, error, refetch } = useApi(() => soulsApi.getActive(), []);
+  const [page, setPage] = useState(1);
+  const [accPosts, setAccPosts] = useState<ReturnType<typeof mapApiSoul>[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const seenIds = useRef<Set<string>>(new Set());
+
+  const { data: rawSouls, isLoading, error, refetch } = useApi(
+    () => soulsApi.getActive(1, PAGE_SIZE),
+    []
+  );
+
+  // Merge fresh poll data into existing list (update counts without shuffling order)
+  useEffect(() => {
+    if (!Array.isArray(rawSouls)) return;
+    const fresh = rawSouls.map(mapApiSoul);
+    setAccPosts(prev => {
+      if (prev.length === 0) {
+        fresh.forEach(p => seenIds.current.add(p.id));
+        return fresh;
+      }
+      // Update existing posts in place; append truly new ones to top
+      const map = new Map(prev.map(p => [p.id, p]));
+      fresh.forEach(p => {
+        map.set(p.id, p);
+        seenIds.current.add(p.id);
+      });
+      return [...map.values()];
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawSouls]);
 
   // Poll every 5 s while the tab is visible so counts update for all viewers
   useEffect(() => {
@@ -46,18 +77,34 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const more = await soulsApi.getActive(nextPage, PAGE_SIZE);
+      if (!Array.isArray(more) || more.length === 0) {
+        setHasMore(false);
+      } else {
+        const mapped = more.map(mapApiSoul).filter(p => !seenIds.current.has(p.id));
+        mapped.forEach(p => seenIds.current.add(p.id));
+        setAccPosts(prev => [...prev, ...mapped]);
+        if (more.length < PAGE_SIZE) setHasMore(false);
+        setPage(nextPage);
+      }
+    } catch {
+      // silently fail — user can retry
+    }
+    setLoadingMore(false);
+  };
+
   const isFallback = !isLoading && error !== null;
-  const realPosts = Array.isArray(rawSouls)
-    ? [...rawSouls].sort((a, b) =>
-        new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
-      ).map(mapApiSoul)
-    : [];
   const mockPostsMapped = mockSouls.map(mapApiSoul);
-  // Mock while loading or on failure; real-only once data arrives
   const allPosts = isLoading || isFallback
     ? mockPostsMapped
-    : realPosts.length > 0
-      ? realPosts
+    : accPosts.length > 0
+      ? accPosts
       : mockPostsMapped;
 
   const [likedPosts, setLikedPosts] = useState<Set<string>>(() => getAllLiked());
@@ -233,6 +280,26 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
           </motion.div>
         ))}
       </div>
+
+      {/* Load More */}
+      {!isFallback && accPosts.length > 0 && (
+        <div className="max-w-2xl mx-auto px-4 mt-4">
+          {hasMore ? (
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="w-full flex items-center justify-center gap-2 py-3 text-slate-400 hover:text-purple-400 transition-colors text-sm disabled:opacity-50"
+            >
+              {loadingMore
+                ? <span className="animate-pulse">Loading...</span>
+                : <><ChevronDown className="w-4 h-4" />Load more souls</>
+              }
+            </button>
+          ) : (
+            <p className="text-center text-slate-600 text-xs py-3">You've seen all the souls</p>
+          )}
+        </div>
+      )}
 
       {/* Floating Action Button */}
       <motion.button

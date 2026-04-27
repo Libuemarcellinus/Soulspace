@@ -19,14 +19,16 @@ export default function PostCreation({ navigateTo, circle }: PostCreationProps) 
   const [inputMode, setInputMode] = useState<'text' | 'voice' | 'doodle'>('text');
   const [isPosting, setIsPosting] = useState(false);
 
-  const { data: rawMoods } = useApi(() => moodsApi.getActive(), []);
-  const moods = (Array.isArray(rawMoods) && rawMoods.length > 0 ? rawMoods : mockMoods).map(mapApiMood);
+  const { data: rawMoods, isLoading: moodsLoading } = useApi(() => moodsApi.getActive(), []);
+  // Only use real API moods for posting — mock mood IDs are rejected by the server
+  const apiMoods = Array.isArray(rawMoods) && rawMoods.length > 0 ? rawMoods : null;
+  const moods = (apiMoods ?? mockMoods).map(mapApiMood);
 
   // Circle posts don't require a mood — only main feed posts do
   const selectedMood = moods.find(m => m.label === selectedMoodLabel) ?? null;
   const canPost = circle
     ? !!(content.trim() && !isPosting)
-    : !!(content.trim() && selectedMood && !isPosting);
+    : !!(content.trim() && selectedMood && !isPosting && apiMoods !== null);
 
   const handlePost = async () => {
     if (!canPost) return;
@@ -78,7 +80,7 @@ export default function PostCreation({ navigateTo, circle }: PostCreationProps) 
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50"
             >
               <Send className="w-4 h-4 mr-2" />
-              {isPosting ? 'Posting…' : 'Post'}
+              {isPosting ? 'Posting…' : moodsLoading && !circle ? 'Loading…' : 'Post'}
             </Button>
           </div>
         </div>

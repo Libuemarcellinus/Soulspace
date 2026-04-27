@@ -18,7 +18,19 @@
       "Bash(curl -s \"https://soulspace-ye8o.onrender.com/api/souls/like?id=test\" -X DELETE -H \"Authorization: Bearer fake_token\")",
       "Bash(git rm *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(curl -s -o - -w \"\\\\n\\\\nHTTP STATUS: %{http_code}\" \"https://soulspace-ye8o.onrender.com/api/souls/active\")",
+      "Bash(curl -s -X POST \"https://soulspace-ye8o.onrender.com/api/auth/login\" -H \"Content-Type: application/json\" -d '{\"username\":\"eric\",\"password\":\"3212\"}')",
+      "Bash(curl -s https://soulspace-ye8o.onrender.com/api/souls/active -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4OWIwYTE3ZC0xMTYxLTQ3NWItOTQyNS03MzI5MDY3YTk3YzIiLCJ1c2VybmFtZSI6ImVyaWMiLCJpYXQiOjE3NzY2MTEwMjIsImV4cCI6MTc3NjY5NzQyMn0.99q5G0_Dk-6zronLDrOb-oUGOcmMpkXlgMBgjiTURWE')",
+      "Bash(curl -s -X POST 'https://soulspace-ye8o.onrender.com/api/souls/like?id=5ea6ae2c-1e0f-4243-bc9b-6869583152aa' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4OWIwYTE3ZC0xMTYxLTQ3NWItOTQyNS03MzI5MDY3YTk3YzIiLCJ1c2VybmFtZSI6ImVyaWMiLCJpYXQiOjE3NzY2MTEwMjIsImV4cCI6MTc3NjY5NzQyMn0.99q5G0_Dk-6zronLDrOb-oUGOcmMpkXlgMBgjiTURWE' -H 'Content-Type: application/json')",
+      "Bash(curl -s https://soulspace-ye8o.onrender.com/api/souls/active -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJobyJ1c2VySWQiOiI4OWIwYTE3ZC0xMTYxLTQ3NWItOTQyNS03MzI5MDY3YTk3YzIiLCJ1c2VybmFtZSI6ImVyaWMiLCJpYXQiOjE3NzY2MTEwMjIsImV4cCI6MTc3NjY5NzQyMn0.99q5G0_Dk-6zronLDrOb-oUGOcmMpkXlgMBgjiTURWE')",
+      "Bash(python -c \"import json,sys; souls=json.load\\(sys.stdin\\)['data']; [print\\(s['soul_id'], s['likes'], s['soul'][:40]\\) for s in souls if s['soul_id']=='5ea6ae2c-1e0f-4243-bc9b-6869583152aa']\")",
+      "Bash(curl -s https://soulspace-ye8o.onrender.com/api/auth/profile -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4OWIwYTE3ZC0xMTYxLTQ3NWItOTQyNS03MzI5MDY3YTk3YzIiLCJ1c2VybmFtZSI6ImVyaWMiLCJpYXQiOjE3NzY2MTEwMjIsImV4cCI6MTc3NjY5NzQyMn0.99q5G0_Dk-6zronLDrOb-oUGOcmMpkXlgMBgjiTURWE')",
+      "Bash(curl -s https://soulspace-ye8o.onrender.com/api/moods/active -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4OWIwYTE3ZC0xMTYxLTQ3NWItOTQyNS03MzI5MDY3YTk3YzIiLCJ1c2VybmFtZSI6ImVyaWMiLCJpYXQiOjE3NzY2MTEwMjIsImV4cCI6MTc3NjY5NzQyMn0.99q5G0_Dk-6zronLDrOb-oUGOcmMpkXlgMBgjiTURWE')",
+      "Bash(curl -s https://soulspace-ye8o.onrender.com/api/circles/active -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4OWIwYTE3ZC0xMTYxLTQ3NWItOTQyNS03MzI5MDY3YTk3YzIiLCJ1c2VybmFtZSI6ImVyaWMiLCJpYXQiOjE3NzY2MTEwMjIsImV4cCI6MTc3NjY5NzQyMn0.99q5G0_Dk-6zronLDrOb-oUGOcmMpkXlgMBgjiTURWE')",
+      "Bash(curl -s https://soulspace-ye8o.onrender.com/api/circles/my_circles -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4OWIwYTE3ZC0xMTYxLTQ3NWItOTQyNS03MzI5MDY3YTk3YzIiLCJ1c2VybmFtZSI6ImVyaWMiLCJpYXQiOjE3NzY2MTEwMjIsImV4cCI6MTc3NjY5NzQyMn0.99q5G0_Dk-6zronLDrOb-oUGOcmMpkXlgMBgjiTURWE')",
+      "Bash(curl -s https://soulspace-ye8o.onrender.com/api/souls/private -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4OWIwYTE3ZC0xMTYxLTQ3NWItOTQyNS03MzI5MDY3YTk3YzIiLCJ1c2VybmFtZSI6ImVyaWMiLCJpYXQiOjE3NzY2MTEwMjIsImV4cCI6MTc3NjY5NzQyMn0.99q5G0_Dk-6zronLDrOb-oUGOcmMpkXlgMBgjiTURWE')"
     ]
   }
 }

@@ -25,23 +25,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const storedToken = localStorage.getItem('soulspace_token');
-    const storedUser = localStorage.getItem('soulspace_user');
-    // No token = logged out; soulspace_user may still exist (kept for login ID comparison)
-    if (!storedToken) {
-      setIsLoading(false);
-      return;
-    }
-    if (!storedUser) {
-      setIsLoading(false);
-      return;
-    }
-    // Restore from cache immediately so the app can proceed without waiting for the network
-    try {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    } catch {
-      setIsLoading(false);
-      return;
+    if (storedToken) {
+      try {
+        // JWTs use base64URL — replace URL-safe chars and restore padding before atob
+        const raw = storedToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = raw + '='.repeat((4 - raw.length % 4) % 4);
+        const payload = JSON.parse(atob(padded));
+        const isExpired = payload.exp != null && payload.exp * 1000 < Date.now();
+        if (isExpired) {
+          localStorage.clear();
+          setIsLoading(false);
+          return;
+        }
+        const storedUser = localStorage.getItem('soulspace_user');
+        if (storedUser) {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+        }
+      } catch {
+        // Malformed token — clear and send to onboarding
+        localStorage.clear();
+      }
     }
     setIsLoading(false);
   }, []);
@@ -71,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    authApi.logout().catch(() => {});
     // Keep soulspace_user so the next login can compare IDs and preserve likes for same user
     localStorage.removeItem('soulspace_token');
     setToken(null);

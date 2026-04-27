@@ -17,6 +17,7 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
   const [empathyCount, setEmpathyCount] = useState(post?.empathy ?? 0);
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [reported, setReported] = useState(false);
+  const [replyLikes, setReplyLikes] = useState<Record<string, number>>({});
 
   const { data: rawReplies, isLoading: repliesLoading, error: repliesError } = useApi(
     () => soulsApi.getReplies(post?.id),
@@ -55,6 +56,16 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
         setEmpathyCount((c: number) => c - 1);
         revertLike(post.id);
       }
+    }
+  };
+
+  const handleReplyLike = async (replyId: string, currentCount: number) => {
+    const prev = replyLikes[replyId] ?? currentCount;
+    setReplyLikes(r => ({ ...r, [replyId]: prev + 1 }));
+    try {
+      await soulsApi.likeReply(replyId);
+    } catch {
+      setReplyLikes(r => ({ ...r, [replyId]: prev }));
     }
   };
 
@@ -200,12 +211,14 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
                     </span>
                   </div>
                   <p className="text-slate-300 mb-3">{reply.reply}</p>
-                  {(reply.like_count ?? 0) > 0 && (
-                    <div className="flex items-center gap-2 text-slate-500 text-sm">
-                      <Heart className="w-4 h-4" />
-                      <span>{reply.like_count}</span>
-                    </div>
-                  )}
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => handleReplyLike(reply.id, reply.like_count ?? 0)}
+                    className="flex items-center gap-1 text-slate-500 hover:text-pink-400 transition-colors text-sm"
+                  >
+                    <Heart className="w-4 h-4" />
+                    <span>{replyLikes[reply.id] ?? reply.like_count ?? 0}</span>
+                  </motion.button>
                 </motion.div>
               ))}
             </>

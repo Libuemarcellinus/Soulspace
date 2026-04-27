@@ -16,13 +16,33 @@ import HelpSafety from './components/HelpSafety';
 import LegalPrivacy from './components/LegalPrivacy';
 import ErrorScreen from './components/ErrorScreen';
 import Register from './components/Register';
+import AdminLogin from './admin/AdminLogin';
+import AdminLayout from './admin/AdminLayout';
+import AdminDashboard from './admin/AdminDashboard';
+import AdminSouls from './admin/AdminSouls';
+import AdminCircles from './admin/AdminCircles';
+import AdminMoods from './admin/AdminMoods';
+import AdminUsers from './admin/AdminUsers';
 import { useAuth } from './context/AuthContext';
+
+const ADMIN_SCREENS = [
+  'admin-login', 'admin-dashboard', 'admin-souls',
+  'admin-circles', 'admin-moods', 'admin-users',
+];
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<string>('splash');
   const [selectedPost, setSelectedPost] = useState<any>(null);
   const [selectedCircle, setSelectedCircle] = useState<any>(null);
   const auth = useAuth();
+
+  // Admin access via URL hash — navigate to localhost:3000/#admin
+  useEffect(() => {
+    if (window.location.hash === '#admin') {
+      window.location.hash = '';
+      setCurrentScreen('admin-login');
+    }
+  }, []);
 
   // Auto-transition from splash to onboarding (or home if already authenticated)
   useEffect(() => {
@@ -39,6 +59,25 @@ export default function App() {
     if (data?.post) setSelectedPost(data.post);
     if (data?.circle) setSelectedCircle(data.circle);
     setCurrentScreen(screen);
+  };
+
+  const renderAdminScreen = () => {
+    switch (currentScreen) {
+      case 'admin-login':
+        return <AdminLogin navigateTo={navigateTo} />;
+      case 'admin-dashboard':
+        return <AdminLayout navigateTo={navigateTo} currentScreen="admin-dashboard"><AdminDashboard /></AdminLayout>;
+      case 'admin-souls':
+        return <AdminLayout navigateTo={navigateTo} currentScreen="admin-souls"><AdminSouls /></AdminLayout>;
+      case 'admin-circles':
+        return <AdminLayout navigateTo={navigateTo} currentScreen="admin-circles"><AdminCircles /></AdminLayout>;
+      case 'admin-moods':
+        return <AdminLayout navigateTo={navigateTo} currentScreen="admin-moods"><AdminMoods /></AdminLayout>;
+      case 'admin-users':
+        return <AdminLayout navigateTo={navigateTo} currentScreen="admin-users"><AdminUsers /></AdminLayout>;
+      default:
+        return null;
+    }
   };
 
   const renderScreen = () => {
@@ -81,6 +120,12 @@ export default function App() {
         return <ErrorScreen navigateTo={navigateTo} />;
     }
   };
+
+  const isAdminScreen = ADMIN_SCREENS.includes(currentScreen);
+
+  if (isAdminScreen) {
+    return renderAdminScreen();
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">

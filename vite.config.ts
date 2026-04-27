@@ -21,7 +21,6 @@ export default defineConfig({
       '/api': {
         target: 'https://soulspace-ye8o.onrender.com',
         changeOrigin: true,
-        secure: true,
       },
     },
   },

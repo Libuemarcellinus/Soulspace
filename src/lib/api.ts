@@ -24,10 +24,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const text = await res.text();
   if (!text) return undefined as T;
   try { return JSON.parse(text) as T; }
-  catch { return undefined as T; } // non-JSON body (plain text "OK" etc.) — treat as success
+  catch { return undefined as T; }
 }
 
-// Unwraps bare arrays OR common server wrapper shapes like { data:[...] }, { moods:[...] }, etc.
+// Unwraps bare arrays OR common server wrapper shapes like { data:[...] }, { souls:[...] }, etc.
 function unwrapList<T>(data: unknown, ...keys: string[]): T[] {
   if (Array.isArray(data)) return data as T[];
   if (data && typeof data === 'object') {
@@ -47,6 +47,27 @@ export interface AuthResponse {
     username: string;
     user_id: string;
   };
+}
+
+export interface ApiProfile {
+  username?: string;
+  user_id?: string;
+  mood?: string;
+  mood_icon?: string;
+  blur_preview?: boolean;
+  push_notifications?: boolean;
+  badges?: ApiBadge[];
+  souls_count?: number;
+  replies_count?: number;
+  days_active?: number;
+}
+
+export interface ApiBadge {
+  id?: string;
+  name: string;
+  icon: string;
+  description?: string;
+  earned?: boolean;
 }
 
 export interface ApiReply {
@@ -73,7 +94,7 @@ export interface ApiMood {
 
 export interface ApiSoul {
   id?: string;
-  soul_id?: string;   // server may use this as the primary key
+  soul_id?: string;
   soul: string;
   mood_id?: string;
   mood?: string;
@@ -94,6 +115,14 @@ export interface ApiCircle {
   member_count?: number;
 }
 
+export interface ApiBlockedUser {
+  id?: string;
+  user_id?: string;
+  username?: string;
+  reason?: string;
+  created_at?: string;
+}
+
 // ── Auth ───────────────────────────────────────────────────────────────────
 
 export const authApi = {
@@ -102,12 +131,38 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
-  login: (username: string, password: string) =>
+  login: (username: string, password: string, fcm?: string) =>
     request<AuthResponse>('auth/login', {
       method: 'POST',
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, ...(fcm ? { fcm } : {}) }),
     }),
-  profile: () => request<AuthResponse>('auth/profile'),
+  logout: () => request<void>('auth/logout', { method: 'POST' }),
+  profile: () => request<ApiProfile>('auth/profile'),
+  refresh: () => request<AuthResponse>('auth/refresh'),
+  updateSettings: (settings: { blur_preview?: boolean; push_notifications?: boolean }) =>
+    request<void>('auth/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(settings),
+    }),
+  updateMood: (mood_id: string) =>
+    request<void>('auth/mood', {
+      method: 'PATCH',
+      body: JSON.stringify({ mood_id }),
+    }),
+  blockUser: (id: string, reason: string) =>
+    request<void>('auth/block_user', {
+      method: 'POST',
+      body: JSON.stringify({ id, reason }),
+    }),
+  unblockUser: (id: string, reason: string) =>
+    request<void>('auth/unblock_user', {
+      method: 'POST',
+      body: JSON.stringify({ id, reason }),
+    }),
+  blockedUsers: () =>
+    request<unknown>('auth/blocked_users').then(d =>
+      unwrapList<ApiBlockedUser>(d, 'users', 'blocked')
+    ),
 };
 
 // ── Moods ──────────────────────────────────────────────────────────────────
@@ -120,10 +175,18 @@ export const moodsApi = {
 // ── Souls ──────────────────────────────────────────────────────────────────
 
 export const soulsApi = {
-  getActive: () =>
-    request<unknown>('souls/active').then(d => unwrapList<ApiSoul>(d, 'souls')),
+  getActive: (page = 1, limit = 20) => {
+    // Only add pagination params when fetching beyond the first page.
+    // The server accepts souls/active without params for the default feed.
+    const qs = page > 1 ? `?page=${page}&limit=${limit}` : '';
+    return request<unknown>(`souls/active${qs}`).then(d => unwrapList<ApiSoul>(d, 'souls'));
+  },
   getPrivate: () =>
     request<unknown>('souls/private').then(d => unwrapList<ApiSoul>(d, 'souls')),
+  getMySouls: () =>
+    request<unknown>('souls/my_souls').then(d => unwrapList<ApiSoul>(d, 'souls')),
+  getSoul: (id: string) =>
+    request<ApiSoul>(`souls/soul?id=${id}`),
   getAverage: () =>
     request<unknown>('souls/average').then(raw => {
       const arr = unwrapList<{ mood: string; percentage: number }>(raw, 'data');
@@ -148,13 +211,25 @@ export const soulsApi = {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
+  deleteSoul: (id: string) =>
+    request<void>(`souls/delete?id=${id}`, { method: 'DELETE' }),
   getReplies: (id: string) =>
     request<unknown>(`souls/replies?id=${id}`).then(d => unwrapList<ApiReply>(d, 'replies')),
-  createReply: (id: string, reply: string, mood_id: string) =>
-    request<ApiReply>(`souls/replies?id=${id}`, {
+  // Endpoint is souls/reply (POST), body is { reply } only — no mood_id
+  createReply: (id: string, reply: string) =>
+    request<ApiReply>(`souls/reply?id=${id}`, {
       method: 'POST',
-      body: JSON.stringify({ reply, mood_id }),
+      body: JSON.stringify({ reply }),
     }),
+  editReply: (id: string, reply: string) =>
+    request<void>(`souls/edit_reply?id=${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reply }),
+    }),
+  deleteReply: (id: string) =>
+    request<void>(`souls/delete_reply?id=${id}`, { method: 'DELETE' }),
+  likeReply: (id: string) =>
+    request<{ message?: string }>(`souls/like_reply?id=${id}`, { method: 'POST' }),
 };
 
 // ── Daily ──────────────────────────────────────────────────────────────────
@@ -173,6 +248,8 @@ export const dailyApi = {
 export const circlesApi = {
   getActive: () =>
     request<unknown>('circles/active').then(d => unwrapList<ApiCircle>(d, 'circles')),
+  getCircle: (circle_id: string) =>
+    request<ApiCircle>(`circles/circle?circle_id=${circle_id}`),
   join: (circle_id: string) =>
     request<void>(`circles/join?circle_id=${circle_id}`, { method: 'POST' }),
   leave: (circle_id: string) =>
