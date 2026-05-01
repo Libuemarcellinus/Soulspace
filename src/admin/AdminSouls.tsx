@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Button } from '../components/ui/button';
 import { Skeleton } from '../components/ui/skeleton';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
 
 function adminRequest(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('soulspace_admin_token');
@@ -64,9 +64,9 @@ export default function AdminSouls() {
     setIsLoading(true);
     try {
       const [allRes, repRes, remRes] = await Promise.allSettled([
-        adminRequest('souls/all'),
-        adminRequest('souls/reported'),
-        adminRequest('souls/removed'),
+        adminRequest('admin/all'),
+        adminRequest('admin/reported'),
+        adminRequest('admin/removed'),
       ]);
       if (allRes.status === 'fulfilled' && allRes.value.ok) {
         const d = await allRes.value.json();
@@ -90,7 +90,7 @@ export default function AdminSouls() {
   const handleRemove = async (id: string) => {
     setRemoving(id);
     try {
-      await adminRequest(`souls/remove?id=${id}`, {
+      await adminRequest(`admin/remove?id=${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ reason: 'Removed by admin' }),
       });

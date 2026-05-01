@@ -1,0 +1,18 @@
+{
+  "name": "SoulSpace",
+  "short_name": "SoulSpace",
+  "description": "Share your soul anonymously. Express what you feel without judgment.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#a855f7",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

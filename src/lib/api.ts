@@ -1,4 +1,4 @@
-const API_BASE = '/api/';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
 
 function getToken(): string | null {
   return localStorage.getItem('soulspace_token');
@@ -12,9 +12,43 @@ function authHeaders(): Record<string, string> {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: { ...authHeaders(), ...(options?.headers as Record<string, string> | undefined) },
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Request timed out. Please check your connection.');
+    }
+    throw err;
+  }
+  clearTimeout(timer);
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`API ${res.status}: ${text}`);
+  }
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  if (!text) return undefined as T;
+  try { return JSON.parse(text) as T; }
+  catch { return undefined as T; }
+}
+
+async function adminRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = localStorage.getItem('soulspace_admin_token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: { ...authHeaders(), ...(options?.headers as Record<string, string> | undefined) },
+    headers: { ...headers, ...(options?.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
@@ -100,9 +134,9 @@ export interface ApiSoul {
   mood?: string;
   mood_icon?: string;
   created_at?: string;
-  likes?: number;      // actual server field
-  like_count?: number; // kept for mock data compatibility
-  reply_count?: number;
+  likes?: number;
+  like_count?: number;
+  replies?: number;
   expires_at?: string;
 }
 
@@ -110,7 +144,7 @@ export interface ApiCircle {
   id?: string;
   circle_id?: string;
   circle: string;
-  icon: string;        // Cloudinary URL from server
+  icon: string;
   status?: string;
   member_count?: number;
 }
@@ -121,6 +155,15 @@ export interface ApiBlockedUser {
   username?: string;
   reason?: string;
   created_at?: string;
+}
+
+export interface ApiNotification {
+  id: string;
+  type?: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+  soul_id?: string;
 }
 
 // ── Auth ───────────────────────────────────────────────────────────────────
@@ -170,14 +213,34 @@ export const authApi = {
 export const moodsApi = {
   getActive: () =>
     request<unknown>('moods/active').then(d => unwrapList<ApiMood>(d, 'moods')),
+  getAverage: () =>
+    request<unknown>('moods/average').then(raw => {
+      const arr = unwrapList<{ mood: string; percentage: number }>(raw, 'data');
+      return Object.fromEntries(arr.map(item => [item.mood, item.percentage])) as Record<string, number>;
+    }),
+  getAverageHourly: () =>
+    request<unknown>('moods/average_hourly').then(d =>
+      unwrapList<{ hour: number; value: number }>(d, 'data', 'hourly')
+    ),
+};
+
+// ── Notifications ──────────────────────────────────────────────────────────
+
+export const notificationsApi = {
+  getAll: () =>
+    request<unknown>('auth/notifications').then(d =>
+      unwrapList<ApiNotification>(d, 'notifications')
+    ),
+  markRead: (id: string) =>
+    request<void>(`auth/read_notification?id=${id}`, { method: 'PATCH' }),
+  delete: (id: string) =>
+    request<void>(`auth/delete_notification?id=${id}`, { method: 'PATCH' }),
 };
 
 // ── Souls ──────────────────────────────────────────────────────────────────
 
 export const soulsApi = {
   getActive: (page = 1, limit = 20) => {
-    // Only add pagination params when fetching beyond the first page.
-    // The server accepts souls/active without params for the default feed.
     const qs = page > 1 ? `?page=${page}&limit=${limit}` : '';
     return request<unknown>(`souls/active${qs}`).then(d => unwrapList<ApiSoul>(d, 'souls'));
   },
@@ -187,11 +250,6 @@ export const soulsApi = {
     request<unknown>('souls/my_souls').then(d => unwrapList<ApiSoul>(d, 'souls')),
   getSoul: (id: string) =>
     request<ApiSoul>(`souls/soul?id=${id}`),
-  getAverage: () =>
-    request<unknown>('souls/average').then(raw => {
-      const arr = unwrapList<{ mood: string; percentage: number }>(raw, 'data');
-      return Object.fromEntries(arr.map(item => [item.mood, item.percentage])) as Record<string, number>;
-    }),
   create: (soul: string, mood_id: string) =>
     request<ApiSoul>('souls/create', {
       method: 'POST',
@@ -215,7 +273,6 @@ export const soulsApi = {
     request<void>(`souls/delete?id=${id}`, { method: 'DELETE' }),
   getReplies: (id: string) =>
     request<unknown>(`souls/replies?id=${id}`).then(d => unwrapList<ApiReply>(d, 'replies')),
-  // Endpoint is souls/reply (POST), body is { reply } only — no mood_id
   createReply: (id: string, reply: string) =>
     request<ApiReply>(`souls/reply?id=${id}`, {
       method: 'POST',
@@ -256,4 +313,45 @@ export const circlesApi = {
     request<void>(`circles/leave?circle_id=${circle_id}`, { method: 'POST' }),
   myCircles: () =>
     request<unknown>('circles/my_circles').then(d => unwrapList<ApiCircle>(d, 'circles')),
+};
+
+// ── Admin ──────────────────────────────────────────────────────────────────
+
+export const adminApi = {
+  login: (email: string, password: string) =>
+    adminRequest<{ token: string }>('admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+  getAllSouls: () =>
+    adminRequest<unknown>('admin/all').then(d => unwrapList(d, 'souls')),
+  getReportedSouls: () =>
+    adminRequest<unknown>('admin/reported').then(d => unwrapList(d, 'souls')),
+  getRemovedSouls: () =>
+    adminRequest<unknown>('admin/removed').then(d => unwrapList(d, 'souls')),
+  removeSoul: (id: string) =>
+    adminRequest<void>(`admin/remove?id=${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reason: 'Removed by admin' }),
+    }),
+  getAllCircles: () =>
+    adminRequest<unknown>('admin/all_circles').then(d => unwrapList(d, 'circles')),
+  createCircle: (circle: string, icon: string) =>
+    adminRequest<void>('admin/create_circle', {
+      method: 'POST',
+      body: JSON.stringify({ circle, icon }),
+    }),
+  setCircleStatus: (id: string, status: boolean) =>
+    adminRequest<void>(`admin/circle_status?id=${id}&status=${status}`, { method: 'PATCH' }),
+  getAllMoods: () =>
+    adminRequest<unknown>('admin/all_moods').then(d => unwrapList(d, 'moods')),
+  createMood: (mood: string, icon: string) =>
+    adminRequest<void>('admin/create_mood', {
+      method: 'POST',
+      body: JSON.stringify({ mood, icon }),
+    }),
+  setMoodStatus: (id: string, status: number) =>
+    adminRequest<void>(`admin/mood_status?id=${id}&status=${status}`, { method: 'PATCH' }),
+  getBlockedUsers: () =>
+    adminRequest<unknown>('admin/all_blocked').then(d => unwrapList(d, 'users')),
 };

@@ -197,12 +197,13 @@ export function mapApiSoul(soul: ApiSoul) {
   const key = (soul.mood ?? '').toLowerCase();
   return {
     id: soul.soul_id ?? soul.id ?? '',
+    moodId: soul.mood_id ?? '',
     mood: soul.mood ?? 'unknown',
     moodColor: moodTextColorMap[key] ?? 'text-slate-400',
     content: soul.soul,
     timestamp: formatTimeAgo(soul.created_at),
     empathy: soul.likes ?? soul.like_count ?? 0,
-    replies: soul.reply_count ?? 0,
+    replies: soul.replies ?? 0,
     expiresIn: formatExpiresIn(soul.expires_at),
   };
 }

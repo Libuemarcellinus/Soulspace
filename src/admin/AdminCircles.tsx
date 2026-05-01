@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Skeleton } from '../components/ui/skeleton';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
 
 function adminRequest(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('soulspace_admin_token');
@@ -37,7 +37,7 @@ export default function AdminCircles() {
 
   async function fetchCircles() {
     try {
-      const res = await adminRequest('circles/all');
+      const res = await adminRequest('admin/all_circles');
       if (res.ok) {
         const d = await res.json();
         setCircles(Array.isArray(d) ? d : d.data || d.circles || []);
@@ -53,7 +53,7 @@ export default function AdminCircles() {
     const newStatus = !circle.status;
     setCircles(prev => prev.map(c => c.id === circle.id ? { ...c, status: newStatus } : c));
     try {
-      await adminRequest(`circles/status?id=${circle.id}&status=${newStatus}`, { method: 'PATCH' });
+      await adminRequest(`admin/circle_status?id=${circle.id}&status=${newStatus}`, { method: 'PATCH' });
     } catch {
       setCircles(prev => prev.map(c => c.id === circle.id ? { ...c, status: circle.status } : c));
     }
@@ -63,7 +63,7 @@ export default function AdminCircles() {
     if (!newName || !iconEmoji) return;
     setIsCreating(true);
     try {
-      const res = await adminRequest('circles/create', {
+      const res = await adminRequest('admin/create_circle', {
         method: 'POST',
         body: JSON.stringify({ circle: newName, icon: iconEmoji }),
       });

@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Skeleton } from '../components/ui/skeleton';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
 
 function adminRequest(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('soulspace_admin_token');
@@ -36,7 +36,7 @@ export default function AdminMoods() {
 
   async function fetchMoods() {
     try {
-      const res = await adminRequest('moods/all');
+      const res = await adminRequest('admin/all_moods');
       if (res.ok) {
         const d = await res.json();
         setMoods(Array.isArray(d) ? d : d.data || d.moods || []);
@@ -54,7 +54,7 @@ export default function AdminMoods() {
     const newStatus = !isActive(mood);
     setMoods(prev => prev.map(m => m.id === mood.id ? { ...m, status: newStatus } : m));
     try {
-      await adminRequest(`moods/status?id=${mood.id}&status=${newStatus ? 1 : 0}`, { method: 'PATCH' });
+      await adminRequest(`admin/mood_status?id=${mood.id}&status=${newStatus ? 1 : 0}`, { method: 'PATCH' });
     } catch {
       setMoods(prev => prev.map(m => m.id === mood.id ? { ...m, status: mood.status } : m));
     }
@@ -64,9 +64,9 @@ export default function AdminMoods() {
     if (!newName || !iconEmoji) return;
     setIsCreating(true);
     try {
-      const res = await adminRequest('moods/create', {
+      const res = await adminRequest('admin/create_mood', {
         method: 'POST',
-        body: JSON.stringify({ mood: newName, mood_icon: iconEmoji }),
+        body: JSON.stringify({ mood: newName, icon: iconEmoji }),
       });
       if (res.ok) {
         setNewName('');

@@ -4,8 +4,8 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
-import { soulsApi, circlesApi } from '../lib/api';
-import { mockSouls, mapApiSoul, mapApiCircle } from '../lib/mockData';
+import { soulsApi, circlesApi, authApi } from '../lib/api';
+import { mapApiSoul, mapApiCircle } from '../lib/mockData';
 import ReconnectingBanner from './ReconnectingBanner';
 
 interface ProfileProps {
@@ -25,10 +25,14 @@ export default function Profile({ navigateTo }: ProfileProps) {
   const { user } = useAuth();
   const { data: rawSouls, isLoading, error } = useApi(() => soulsApi.getPrivate(), []);
   const { data: rawCircles, isLoading: circlesLoading } = useApi(() => circlesApi.myCircles(), []);
+  const { data: profileData } = useApi(() => authApi.profile(), []);
   const isFallback = !isLoading && error !== null;
-  const soulsArray = Array.isArray(rawSouls) ? rawSouls : null;
-  const mySouls = (soulsArray ?? (isFallback ? mockSouls.slice(0, 3) : [])).map(mapApiSoul);
+  const mySouls = Array.isArray(rawSouls) ? rawSouls.map(mapApiSoul) : [];
   const myCircles = Array.isArray(rawCircles) ? rawCircles.map((c, i) => mapApiCircle(c, i)) : [];
+  const soulsCount = profileData?.souls_count;
+  const repliesCount = profileData?.replies_count;
+  const daysActive = profileData?.days_active;
+  const apiBadges = Array.isArray(profileData?.badges) ? profileData.badges : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 pb-24">
@@ -83,18 +87,18 @@ export default function Profile({ navigateTo }: ProfileProps) {
           </Badge>
         </motion.div>
 
-        {/* Stats Grid — real data not available yet, show '--' */}
+        {/* Stats Grid */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="grid grid-cols-3 gap-4 mb-6"
         >
-          {[
-            { label: 'Souls Touched', icon: Heart, color: 'text-pink-400' },
-            { label: 'Echoes Shared', icon: MessageCircle, color: 'text-purple-400' },
-            { label: 'Days Active', icon: Flame, color: 'text-orange-400' },
-          ].map((stat, index) => {
+          {([
+            { label: 'Souls Shared', icon: Heart, color: 'text-pink-400', value: soulsCount },
+            { label: 'Echoes Shared', icon: MessageCircle, color: 'text-purple-400', value: repliesCount },
+            { label: 'Days Active', icon: Flame, color: 'text-orange-400', value: daysActive },
+          ] as const).map((stat, index) => {
             const Icon = stat.icon;
             return (
               <div
@@ -102,7 +106,9 @@ export default function Profile({ navigateTo }: ProfileProps) {
                 className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 text-center"
               >
                 <Icon className={`w-6 h-6 ${stat.color} mx-auto mb-2`} />
-                <div className={`text-2xl ${stat.color} mb-1`}>--</div>
+                <div className={`text-2xl ${stat.color} mb-1`}>
+                  {stat.value != null ? stat.value : '--'}
+                </div>
                 <div className="text-slate-400 text-xs">{stat.label}</div>
               </div>
             );
@@ -123,12 +129,12 @@ export default function Profile({ navigateTo }: ProfileProps) {
             </div>
             <div className="flex items-center gap-2">
               <Flame className="w-8 h-8 text-orange-400" />
-              <span className="text-3xl text-orange-400">--</span>
+              <span className="text-3xl text-orange-400">{daysActive ?? '--'}</span>
             </div>
           </div>
         </motion.div>
 
-        {/* Badges — all locked until backend provides badge data */}
+        {/* Badges */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -136,22 +142,29 @@ export default function Profile({ navigateTo }: ProfileProps) {
         >
           <h3 className="text-slate-300 mb-4">Achievements</h3>
           <div className="grid grid-cols-3 gap-4">
-            {badges.map((badge, index) => (
-              <motion.div
-                key={badge.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.5 + index * 0.05 }}
-                className="p-4 rounded-2xl border-2 text-center bg-slate-800/20 border-slate-700/30 opacity-50"
-              >
-                <div className="relative inline-block mb-2">
-                  <span className="text-3xl">{badge.icon}</span>
-                  <Lock className="w-3 h-3 text-slate-500 absolute -bottom-1 -right-1" />
-                </div>
-                <div className="text-sm mb-1 text-slate-500">{badge.name}</div>
-                <div className="text-xs text-slate-600">{badge.description}</div>
-              </motion.div>
-            ))}
+            {(apiBadges ?? badges).map((badge, index) => {
+              const earned = 'earned' in badge ? badge.earned : false;
+              return (
+                <motion.div
+                  key={'id' in badge ? badge.id : index}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5 + index * 0.05 }}
+                  className={`p-4 rounded-2xl border-2 text-center transition-all ${
+                    earned
+                      ? 'bg-purple-500/10 border-purple-500/30'
+                      : 'bg-slate-800/20 border-slate-700/30 opacity-50'
+                  }`}
+                >
+                  <div className="relative inline-block mb-2">
+                    <span className="text-3xl">{badge.icon}</span>
+                    {!earned && <Lock className="w-3 h-3 text-slate-500 absolute -bottom-1 -right-1" />}
+                  </div>
+                  <div className={`text-sm mb-1 ${earned ? 'text-slate-200' : 'text-slate-500'}`}>{badge.name}</div>
+                  <div className="text-xs text-slate-600">{badge.description}</div>
+                </motion.div>
+              );
+            })}
           </div>
         </motion.div>
 

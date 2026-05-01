@@ -19,16 +19,19 @@ export default function PostCreation({ navigateTo, circle }: PostCreationProps) 
   const [inputMode, setInputMode] = useState<'text' | 'voice' | 'doodle'>('text');
   const [isPosting, setIsPosting] = useState(false);
 
-  const { data: rawMoods, isLoading: moodsLoading } = useApi(() => moodsApi.getActive(), []);
-  // Only use real API moods for posting — mock mood IDs are rejected by the server
+  const { data: rawMoods, isLoading: moodsLoading, refetch: retryMoods } = useApi(() => moodsApi.getActive(), []);
   const apiMoods = Array.isArray(rawMoods) && rawMoods.length > 0 ? rawMoods : null;
+  const moodsReady = apiMoods !== null;
+  const moodsFailed = !moodsLoading && !moodsReady;
+  // Only show real API moods; fall back to mock for display only while still loading
   const moods = (apiMoods ?? mockMoods).map(mapApiMood);
 
-  // Circle posts don't require a mood — only main feed posts do
   const selectedMood = moods.find(m => m.label === selectedMoodLabel) ?? null;
+  // Block posting with mock mood IDs — the server rejects them with 400.
+  // Posting requires real mood IDs from the server.
   const canPost = circle
     ? !!(content.trim() && !isPosting)
-    : !!(content.trim() && selectedMood && !isPosting && apiMoods !== null);
+    : !!(content.trim() && selectedMood && !isPosting && moodsReady);
 
   const handlePost = async () => {
     if (!canPost) return;
@@ -42,8 +45,9 @@ export default function PostCreation({ navigateTo, circle }: PostCreationProps) 
         await soulsApi.create(content.trim(), selectedMood.id);
         navigateTo('home');
       }
-    } catch {
-      toast.error('Failed to share your soul. Please try again.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to share your soul.';
+      toast.error(message);
       setIsPosting(false);
     }
   };
@@ -80,7 +84,7 @@ export default function PostCreation({ navigateTo, circle }: PostCreationProps) 
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50"
             >
               <Send className="w-4 h-4 mr-2" />
-              {isPosting ? 'Posting…' : moodsLoading && !circle ? 'Loading…' : 'Post'}
+              {isPosting ? 'Posting…' : moodsLoading && !circle ? 'Loading moods…' : 'Post'}
             </Button>
           </div>
         </div>
@@ -95,6 +99,12 @@ export default function PostCreation({ navigateTo, circle }: PostCreationProps) 
             transition={{ delay: 0.1 }}
           >
             <label className="block text-slate-300 mb-3">How are you feeling?</label>
+            {moodsFailed && (
+              <div className="mb-3 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-center justify-between">
+                <span className="text-yellow-400 text-sm">Couldn't reach server — select a mood once it reconnects.</span>
+                <button onClick={() => retryMoods()} className="text-yellow-400 text-sm underline ml-3 shrink-0">Retry</button>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-3 mb-6">
               {moods.map((mood) => {
                 const Icon = mood.icon ?? Meh;

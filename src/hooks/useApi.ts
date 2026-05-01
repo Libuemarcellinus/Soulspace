@@ -23,7 +23,9 @@ export function useApi<T>(
   useEffect(() => {
     let live = true;
     if (!hasLoaded.current) setIsLoading(true);
-    setError(null);
+    // Only clear a previous error when we've already had a successful load (background poll).
+    // On the very first load / manual retry, keep showing loading state; don't flash error→loading.
+    if (hasLoaded.current) setError(null);
     fetcher()
       .then(result => {
         if (live) {

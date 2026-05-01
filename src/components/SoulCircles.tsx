@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { circlesApi } from '../lib/api';
-import { mockCircles, mapApiCircle } from '../lib/mockData';
+import { mapApiCircle } from '../lib/mockData';
 import ReconnectingBanner from './ReconnectingBanner';
 
 interface SoulCirclesProps {
@@ -14,9 +14,7 @@ interface SoulCirclesProps {
 export default function SoulCircles({ navigateTo }: SoulCirclesProps) {
   const { data: rawCircles, isLoading, error } = useApi(() => circlesApi.getActive(), []);
   const isFallback = !isLoading && error !== null;
-  const realCircles = Array.isArray(rawCircles) ? rawCircles.map(mapApiCircle) : [];
-  // Show mock immediately; swap to real when it arrives (circles are a fixed list, not a stream)
-  const circles = !isLoading && realCircles.length > 0 ? realCircles : mockCircles.map(mapApiCircle);
+  const circles = Array.isArray(rawCircles) ? rawCircles.map((c, i) => mapApiCircle(c, i)) : [];
 
   const trendingCircle = circles[1] ?? circles[0];
 
@@ -104,6 +102,24 @@ export default function SoulCircles({ navigateTo }: SoulCirclesProps) {
         {/* All Circles */}
         <div className="space-y-4">
           <h2 className="text-slate-300 mb-4">All Circles</h2>
+
+          {isLoading && (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-20 bg-slate-800/40 border border-slate-700/50 rounded-2xl animate-pulse" />
+            ))
+          )}
+
+          {!isLoading && isFallback && circles.length === 0 && (
+            <div className="text-center py-10">
+              <p className="text-slate-400 mb-3">Could not load circles.</p>
+            </div>
+          )}
+
+          {!isLoading && !isFallback && circles.length === 0 && (
+            <div className="text-center py-10">
+              <p className="text-slate-500">No circles available yet.</p>
+            </div>
+          )}
 
           {circles.map((circle, index) => {
                 const Icon = circle.icon;

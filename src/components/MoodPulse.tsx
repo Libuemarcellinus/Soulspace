@@ -3,8 +3,8 @@ import { ArrowLeft, TrendingUp, TrendingDown, Activity, Ghost, Compass, User } f
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
-import { soulsApi } from '../lib/api';
-import { mockMoodAverage, mapMoodAverage } from '../lib/mockData';
+import { moodsApi } from '../lib/api';
+import { mapMoodAverage } from '../lib/mockData';
 import ReconnectingBanner from './ReconnectingBanner';
 
 interface MoodPulseProps {
@@ -23,12 +23,11 @@ const timeData = [
 ];
 
 export default function MoodPulse({ navigateTo }: MoodPulseProps) {
-  const { data: rawAverage, isLoading, error } = useApi(() => soulsApi.getAverage(), []);
+  const { data: rawAverage, isLoading, error } = useApi(() => moodsApi.getAverage(), []);
   const isFallback = !isLoading && error !== null;
   const hasAvgData = rawAverage != null && typeof rawAverage === 'object' && !Array.isArray(rawAverage) && Object.keys(rawAverage as object).length > 0;
-  // Always show data — mock immediately, real data when it arrives
-  const globalMoods = mapMoodAverage(hasAvgData ? rawAverage as Record<string, number> : mockMoodAverage);
-  const dominantMood = globalMoods[0]?.mood ?? 'Hopeful';
+  const globalMoods = hasAvgData ? mapMoodAverage(rawAverage as Record<string, number>) : [];
+  const dominantMood = globalMoods[0]?.mood ?? '—';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 pb-24">

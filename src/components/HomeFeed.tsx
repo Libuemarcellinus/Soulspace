@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { soulsApi } from '../lib/api';
-import { mockSouls, mapApiSoul } from '../lib/mockData';
+import { mapApiSoul } from '../lib/mockData';
 import { getAllLiked, persistLike, revertLike } from '../lib/likeStorage';
 import ReconnectingBanner from './ReconnectingBanner';
 
@@ -45,6 +45,7 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const seenIds = useRef<Set<string>>(new Set());
+  const hasEverLoaded = useRef(false);
 
   const { data: rawSouls, isLoading, error, refetch } = useApi(
     () => soulsApi.getActive(1, PAGE_SIZE),
@@ -58,22 +59,26 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
     setAccPosts(prev => {
       if (prev.length === 0) {
         fresh.forEach(p => seenIds.current.add(p.id));
+        hasEverLoaded.current = true;
         return fresh;
       }
-      // Update existing posts in place; append truly new ones to top
-      const map = new Map(prev.map(p => [p.id, p]));
-      fresh.forEach(p => {
-        map.set(p.id, p);
-        seenIds.current.add(p.id);
-      });
-      return [...map.values()];
+      // Prepend truly new posts to top; update counts on existing ones in place
+      const prevMap = new Map(prev.map(p => [p.id, p]));
+      const freshMap = new Map(fresh.map(p => [p.id, p]));
+      const newPosts = fresh.filter(p => !prevMap.has(p.id));
+      newPosts.forEach(p => seenIds.current.add(p.id));
+      const updated = prev.map(p => freshMap.get(p.id) ?? p);
+      return [...newPosts, ...updated];
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawSouls]);
 
-  // Poll every 5 s while the tab is visible so counts update for all viewers
+  // Poll every 5 s while the tab is visible — only after the first successful load
+  // so a cold-start failure doesn't trigger an infinite loading/error cycle
   useEffect(() => {
-    const id = setInterval(() => { if (!document.hidden) refetch(); }, 5000);
+    const id = setInterval(() => {
+      if (!document.hidden && hasEverLoaded.current) refetch();
+    }, 5000);
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -99,13 +104,10 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
     setLoadingMore(false);
   };
 
-  const isFallback = !isLoading && error !== null;
-  const mockPostsMapped = mockSouls.map(mapApiSoul);
-  const allPosts = isLoading || isFallback
-    ? mockPostsMapped
-    : accPosts.length > 0
-      ? accPosts
-      : mockPostsMapped;
+  const hasError = !isLoading && error !== null && accPosts.length === 0;
+  const isEmpty = !isLoading && !error && accPosts.length === 0;
+  // Show reconnecting banner only when a background refresh fails but we still have cached posts
+  const showReconnecting = !isLoading && error !== null && accPosts.length > 0;
 
   const [likedPosts, setLikedPosts] = useState<Set<string>>(() => getAllLiked());
   const [countOverrides, setCountOverrides] = useState<Record<string, number>>({});
@@ -146,7 +148,7 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 pb-24">
-      <ReconnectingBanner show={isFallback} />
+      <ReconnectingBanner show={showReconnecting} />
 
       {/* Header */}
       <motion.div
@@ -208,7 +210,29 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
 
       {/* Feed */}
       <div className="max-w-2xl mx-auto px-4 mt-6 space-y-4">
-        {allPosts.map((post, index) => (
+        {isLoading && accPosts.length === 0 && (
+          Array.from({ length: 4 }).map((_, i) => <PostSkeleton key={i} />)
+        )}
+
+        {hasError && (
+          <div className="text-center py-16">
+            <p className="text-slate-400 mb-4">Could not load souls. Check your connection.</p>
+            <button
+              onClick={() => refetch()}
+              className="text-purple-400 hover:text-purple-300 transition-colors text-sm underline underline-offset-2"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {isEmpty && (
+          <div className="text-center py-16">
+            <p className="text-slate-500">No souls yet. Be the first to share.</p>
+          </div>
+        )}
+
+        {accPosts.map((post, index) => (
           <motion.div
             key={post.id}
             initial={{ opacity: 0, y: 20 }}
@@ -282,7 +306,7 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
       </div>
 
       {/* Load More */}
-      {!isFallback && accPosts.length > 0 && (
+      {accPosts.length > 0 && (
         <div className="max-w-2xl mx-auto px-4 mt-4">
           {hasMore ? (
             <button

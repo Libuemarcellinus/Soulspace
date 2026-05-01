@@ -24,6 +24,7 @@ import AdminCircles from './admin/AdminCircles';
 import AdminMoods from './admin/AdminMoods';
 import AdminUsers from './admin/AdminUsers';
 import { useAuth } from './context/AuthContext';
+import { soulsApi } from './lib/api';
 
 const ADMIN_SCREENS = [
   'admin-login', 'admin-dashboard', 'admin-souls',
@@ -35,6 +36,11 @@ export default function App() {
   const [selectedPost, setSelectedPost] = useState<any>(null);
   const [selectedCircle, setSelectedCircle] = useState<any>(null);
   const auth = useAuth();
+
+  // Fire a background request on mount so the Render backend wakes up during the splash delay
+  useEffect(() => {
+    soulsApi.getActive(1, 1).catch(() => {});
+  }, []);
 
   // Admin access via URL hash — navigate to localhost:3000/#admin
   useEffect(() => {

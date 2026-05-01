@@ -4,7 +4,7 @@ import { MessageSquare, AlertCircle, Trash2, Circle, Smile, UserX } from 'lucide
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Skeleton } from '../components/ui/skeleton';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
 
 function adminRequest(path: string) {
   const token = localStorage.getItem('soulspace_admin_token');
@@ -67,11 +67,11 @@ export default function AdminDashboard() {
       try {
         const [soulsRes, reportedRes, removedRes, circlesRes, moodsRes, blockedRes] =
           await Promise.allSettled([
-            adminRequest('souls/all'),
-            adminRequest('souls/reported'),
-            adminRequest('souls/removed'),
-            adminRequest('circles/all'),
-            adminRequest('moods/all'),
+            adminRequest('admin/all'),
+            adminRequest('admin/reported'),
+            adminRequest('admin/removed'),
+            adminRequest('admin/all_circles'),
+            adminRequest('admin/all_moods'),
             adminRequest('admin/all_blocked'),
           ]);
 

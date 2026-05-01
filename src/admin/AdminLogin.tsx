@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
 
 interface AdminLoginProps {
   navigateTo: (screen: string) => void;
@@ -27,8 +27,9 @@ export default function AdminLogin({ navigateTo }: AdminLoginProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Login failed');
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
+      if (!res.ok) throw new Error(data.message || data.error || `Login failed (${res.status})`);
       localStorage.setItem('soulspace_admin_token', data.token);
       navigateTo('admin-dashboard');
     } catch (err: unknown) {

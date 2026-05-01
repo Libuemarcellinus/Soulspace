@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { soulsApi, circlesApi } from '../lib/api';
-import { mockCircleSouls, mapApiSoul } from '../lib/mockData';
+import { mapApiSoul } from '../lib/mockData';
 import { getAllLiked, persistLike, revertLike } from '../lib/likeStorage';
 import ReconnectingBanner from './ReconnectingBanner';
 
@@ -42,17 +42,11 @@ export default function CircleFeed({ circle, navigateTo }: CircleFeedProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const isFallback = !isLoading && error !== null;
-  const realPosts = Array.isArray(rawSouls)
+  const posts = Array.isArray(rawSouls)
     ? [...rawSouls].sort((a, b) =>
         new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
       ).map(mapApiSoul)
     : [];
-  const mockPostsMapped = mockCircleSouls.map(mapApiSoul);
-  const posts = isLoading || isFallback
-    ? mockPostsMapped
-    : realPosts.length > 0
-      ? realPosts
-      : mockPostsMapped;
 
   // Membership state — seeded from localStorage, kept in sync
   const [joined, setJoined] = useState(() => getJoinedIds().includes(circle.id));
@@ -176,6 +170,25 @@ export default function CircleFeed({ circle, navigateTo }: CircleFeedProps) {
 
       {/* Feed */}
       <div className="max-w-2xl mx-auto px-4 mt-6 space-y-4">
+        {isLoading && posts.length === 0 && (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-32 bg-slate-800/40 border border-slate-700/50 rounded-3xl animate-pulse" />
+          ))
+        )}
+
+        {!isLoading && isFallback && posts.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-slate-400 mb-3">Could not load posts.</p>
+            <button onClick={() => refetch()} className="text-purple-400 text-sm underline underline-offset-2">Try again</button>
+          </div>
+        )}
+
+        {!isLoading && !isFallback && posts.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-slate-500">No souls in this circle yet. Be the first!</p>
+          </div>
+        )}
+
         {posts.map((post, index) => (
           <motion.div
             key={post.id}
