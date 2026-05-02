@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Ghost, Plus, Compass, User, TrendingUp, MessageCircle, Heart, Clock, ChevronDown } from 'lucide-react';
+import { Ghost, Plus, Compass, User, TrendingUp, MessageCircle, Heart, Clock, ChevronDown, Bell } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
-import { soulsApi } from '../lib/api';
+import { soulsApi, notificationsApi } from '../lib/api';
 import { mapApiSoul } from '../lib/mockData';
 import { getAllLiked, persistLike, revertLike } from '../lib/likeStorage';
 import ReconnectingBanner from './ReconnectingBanner';
@@ -51,6 +51,8 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
     () => soulsApi.getActive(1, PAGE_SIZE),
     []
   );
+  const { data: rawNotifs } = useApi(() => notificationsApi.getAll(), []);
+  const unreadCount = Array.isArray(rawNotifs) ? rawNotifs.filter(n => !n.read).length : 0;
 
   // Merge fresh poll data into existing list (update counts without shuffling order)
   useEffect(() => {
@@ -173,14 +175,29 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
               </motion.div>
               <h1 className="text-slate-100">SoulFeed</h1>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-slate-400 hover:text-purple-400"
-              onClick={() => navigateTo('mood-pulse')}
-            >
-              <TrendingUp className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative text-slate-400 hover:text-purple-400"
+                onClick={() => navigateTo('notifications')}
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-purple-500 text-white text-[10px] rounded-full flex items-center justify-center leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-slate-400 hover:text-purple-400"
+                onClick={() => navigateTo('mood-pulse')}
+              >
+                <TrendingUp className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
         </div>
       </motion.div>

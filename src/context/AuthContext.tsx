@@ -24,6 +24,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const handleExpired = () => {
+      localStorage.removeItem('soulspace_token');
+      setToken(null);
+      setUser(null);
+    };
+    window.addEventListener('soulspace:session-expired', handleExpired);
+    return () => window.removeEventListener('soulspace:session-expired', handleExpired);
+  }, []);
+
+  useEffect(() => {
     const storedToken = localStorage.getItem('soulspace_token');
     if (storedToken) {
       try {

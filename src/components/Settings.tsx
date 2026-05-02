@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import { Separator } from './ui/separator';
 import { useAuth } from '../context/AuthContext';
+import { authApi } from '../lib/api';
 
 interface SettingsProps {
   navigateTo: (screen: string) => void;
@@ -39,6 +40,7 @@ export default function Settings({ navigateTo }: SettingsProps) {
   const handleNotificationsToggle = async (value: boolean) => {
     if (!value) {
       toggle('notifications', setNotifications, false);
+      authApi.updateSettings({ push_notifications: false }).catch(() => {});
       return;
     }
     if (!('Notification' in window)) {
@@ -51,11 +53,13 @@ export default function Settings({ navigateTo }: SettingsProps) {
     }
     if (Notification.permission === 'granted') {
       toggle('notifications', setNotifications, true);
+      authApi.updateSettings({ push_notifications: true }).catch(() => {});
       return;
     }
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       toggle('notifications', setNotifications, true);
+      authApi.updateSettings({ push_notifications: true }).catch(() => {});
       setNotifStatus('idle');
     } else {
       setNotifStatus('denied');
@@ -145,7 +149,10 @@ export default function Settings({ navigateTo }: SettingsProps) {
               </div>
               <Switch
                 checked={blurPreviews}
-                onCheckedChange={(v) => toggle('blurPreviews', setBlurPreviews, v)}
+                onCheckedChange={(v) => {
+                  toggle('blurPreviews', setBlurPreviews, v);
+                  authApi.updateSettings({ blur_preview: v }).catch(() => {});
+                }}
               />
             </div>
           </div>

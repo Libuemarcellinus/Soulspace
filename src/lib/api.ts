@@ -11,7 +11,7 @@ function authHeaders(): Record<string, string> {
   return headers;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function request<T>(path: string, options?: RequestInit, _retry = false): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60000);
   let res: Response;
@@ -29,6 +29,30 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw err;
   }
   clearTimeout(timer);
+
+  // 401: attempt one silent token refresh, then give up
+  if (res.status === 401 && !_retry && path !== 'auth/refresh' && path !== 'auth/login' && path !== 'auth/register') {
+    const token = getToken();
+    if (token) {
+      try {
+        const refreshRes = await fetch(`${API_BASE}auth/refresh`, {
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        });
+        if (refreshRes.ok) {
+          const refreshText = await refreshRes.text();
+          const refreshData = JSON.parse(refreshText);
+          if (refreshData?.token) {
+            localStorage.setItem('soulspace_token', refreshData.token);
+            return request<T>(path, options, true);
+          }
+        }
+      } catch { /* ignore refresh errors */ }
+    }
+    localStorage.removeItem('soulspace_token');
+    window.dispatchEvent(new CustomEvent('soulspace:session-expired'));
+    throw new Error('Session expired. Please log in again.');
+  }
+
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`API ${res.status}: ${text}`);

@@ -12,6 +12,7 @@ import Profile from './components/Profile';
 import MoodPulse from './components/MoodPulse';
 import DailyUnload from './components/DailyUnload';
 import Settings from './components/Settings';
+import Notifications from './components/Notifications';
 import HelpSafety from './components/HelpSafety';
 import LegalPrivacy from './components/LegalPrivacy';
 import ErrorScreen from './components/ErrorScreen';
@@ -111,6 +112,8 @@ export default function App() {
         return <DailyUnload navigateTo={navigateTo} />;
       case 'settings':
         return <Settings navigateTo={navigateTo} />;
+      case 'notifications':
+        return <Notifications navigateTo={navigateTo} />;
       case 'help':
         return <HelpSafety navigateTo={navigateTo} />;
       case 'legal':
