@@ -11,7 +11,10 @@ interface NotificationsProps {
 }
 
 function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
+  if (!iso) return '';
+  const ms = new Date(iso).getTime();
+  if (isNaN(ms)) return '';
+  const diff = Date.now() - ms;
   const m = Math.floor(diff / 60000);
   if (m < 1) return 'just now';
   if (m < 60) return `${m}m ago`;

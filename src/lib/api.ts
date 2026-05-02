@@ -266,10 +266,21 @@ export const moodsApi = {
 
 // ── Notifications ──────────────────────────────────────────────────────────
 
+function normalizeNotification(raw: Record<string, unknown>): ApiNotification {
+  return {
+    id: (raw.id ?? raw.notification_id ?? '') as string,
+    type: (raw.type ?? raw.notification_type) as string | undefined,
+    message: (raw.message ?? raw.notification ?? raw.text ?? raw.body ?? raw.content ?? '') as string,
+    read: Boolean(raw.read ?? raw.is_read ?? raw.seen ?? false),
+    created_at: (raw.created_at ?? raw.createdAt ?? raw.timestamp ?? raw.date ?? '') as string,
+    soul_id: (raw.soul_id ?? raw.soulId ?? raw.post_id) as string | undefined,
+  };
+}
+
 export const notificationsApi = {
   getAll: () =>
     request<unknown>('auth/notifications').then(d =>
-      unwrapList<ApiNotification>(d, 'notifications')
+      unwrapList<Record<string, unknown>>(d, 'notifications').map(normalizeNotification)
     ),
   markRead: (id: string) =>
     request<void>(`auth/read_notification?id=${id}`, { method: 'PATCH' }),
