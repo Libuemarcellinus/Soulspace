@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Heart, MessageCircle, Flag, Ghost, Clock, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Heart, MessageCircle, Flag, Ghost, Clock, MessageSquare, Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { soulsApi } from '../lib/api';
 import { isLiked, persistLike, revertLike } from '../lib/likeStorage';
+import { toast } from 'sonner';
 
 interface PostDetailProps {
   post: any;
@@ -66,6 +67,27 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
       await soulsApi.likeReply(replyId);
     } catch {
       setReplyLikes(r => ({ ...r, [replyId]: prev }));
+    }
+  };
+
+  const handleShare = async () => {
+    const text = `"${post.content}"\n\n— shared anonymously on SoulSpace · expires in 24h`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'SoulSpace', text });
+      } catch (e) {
+        if (e instanceof Error && e.name !== 'AbortError') {
+          await navigator.clipboard.writeText(text).catch(() => {});
+          toast.success('Copied to clipboard');
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.success('Copied to clipboard');
+      } catch {
+        toast.error('Could not copy to clipboard');
+      }
     }
   };
 
@@ -171,6 +193,12 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
             >
               <MessageCircle className="w-5 h-5" />
               <span>{post.replies}</span>
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-2 text-slate-400 hover:text-purple-400 transition-colors ml-auto"
+            >
+              <Share2 className="w-5 h-5" />
             </button>
           </div>
         </motion.div>
