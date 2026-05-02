@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Skeleton } from '../components/ui/skeleton';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-production.up.railway.app/api/';
 
 function adminRequest(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('soulspace_admin_token');
@@ -40,7 +40,8 @@ export default function AdminCircles() {
       const res = await adminRequest('admin/all_circles');
       if (res.ok) {
         const d = await res.json();
-        setCircles(Array.isArray(d) ? d : d.data || d.circles || []);
+        const raw = Array.isArray(d) ? d : d.data || d.circles || [];
+        setCircles(raw.map((c: any) => ({ ...c, id: c.circle_id ?? c.id })));
       }
     } catch { /* silent */ } finally {
       setIsLoading(false);

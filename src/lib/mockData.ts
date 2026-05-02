@@ -195,6 +195,10 @@ function formatExpiresIn(expiresStr?: string): string {
 
 export function mapApiSoul(soul: ApiSoul) {
   const key = (soul.mood ?? '').toLowerCase();
+  const createdMs = soul.created_at ? new Date(soul.created_at).getTime() : Date.now();
+  const expiresAtMs = createdMs + 86400000;
+  const remainingMs = expiresAtMs - Date.now();
+  const expiryPercent = Math.max(0, Math.min(100, (remainingMs / 86400000) * 100));
   return {
     id: soul.soul_id ?? soul.id ?? '',
     moodId: soul.mood_id ?? '',
@@ -204,7 +208,8 @@ export function mapApiSoul(soul: ApiSoul) {
     timestamp: formatTimeAgo(soul.created_at),
     empathy: soul.likes ?? soul.like_count ?? 0,
     replies: soul.replies ?? 0,
-    expiresIn: formatExpiresIn(soul.expires_at),
+    expiresIn: formatExpiresIn(soul.expires_at ?? new Date(expiresAtMs).toISOString()),
+    expiryPercent,
   };
 }
 

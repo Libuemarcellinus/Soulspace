@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Skeleton } from '../components/ui/skeleton';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-production.up.railway.app/api/';
 
 function adminRequest(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('soulspace_admin_token');
@@ -39,7 +39,8 @@ export default function AdminMoods() {
       const res = await adminRequest('admin/all_moods');
       if (res.ok) {
         const d = await res.json();
-        setMoods(Array.isArray(d) ? d : d.data || d.moods || []);
+        const raw = Array.isArray(d) ? d : d.data || d.moods || [];
+        setMoods(raw.map((m: any) => ({ ...m, id: m.mood_id ?? m.id })));
       }
     } catch { /* silent */ } finally {
       setIsLoading(false);

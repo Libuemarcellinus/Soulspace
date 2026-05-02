@@ -128,49 +128,51 @@ export default function PostCreation({ navigateTo, circle }: PostCreationProps) 
           </motion.div>
         )}
 
-        {/* Input Mode Toggle */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex gap-2 mb-4"
-        >
-          <Button
-            variant={inputMode === 'text' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setInputMode('text')}
-            className={inputMode === 'text' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : ''}
+        {/* Input Mode Toggle — voice & doodle hidden until built */}
+        {false && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex gap-2 mb-4"
           >
-            <Type className="w-4 h-4 mr-2" />
-            Text
-          </Button>
-          <Button
-            variant={inputMode === 'voice' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setInputMode('voice')}
-            className={inputMode === 'voice' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : ''}
-          >
-            <Mic className="w-4 h-4 mr-2" />
-            Voice
-          </Button>
-          <Button
-            variant={inputMode === 'doodle' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setInputMode('doodle')}
-            className={inputMode === 'doodle' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : ''}
-          >
-            <Palette className="w-4 h-4 mr-2" />
-            Doodle
-          </Button>
-        </motion.div>
+            <Button
+              variant={inputMode === 'text' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setInputMode('text')}
+              className={inputMode === 'text' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : ''}
+            >
+              <Type className="w-4 h-4 mr-2" />
+              Text
+            </Button>
+            <Button
+              variant={inputMode === 'voice' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setInputMode('voice')}
+              className={inputMode === 'voice' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : ''}
+            >
+              <Mic className="w-4 h-4 mr-2" />
+              Voice
+            </Button>
+            <Button
+              variant={inputMode === 'doodle' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setInputMode('doodle')}
+              className={inputMode === 'doodle' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : ''}
+            >
+              <Palette className="w-4 h-4 mr-2" />
+              Doodle
+            </Button>
+          </motion.div>
+        )}
 
         {/* Input Area */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
         >
-          {inputMode === 'text' && (
+          {(inputMode === 'text' || true) && (
             <div>
               <Textarea
                 value={content}
@@ -184,7 +186,7 @@ export default function PostCreation({ navigateTo, circle }: PostCreationProps) 
             </div>
           )}
 
-          {inputMode === 'voice' && (
+          {false && inputMode === 'voice' && (
             <div className="min-h-[300px] bg-slate-800/40 border-2 border-slate-700/50 rounded-3xl flex flex-col items-center justify-center">
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
@@ -198,7 +200,7 @@ export default function PostCreation({ navigateTo, circle }: PostCreationProps) 
             </div>
           )}
 
-          {inputMode === 'doodle' && (
+          {false && inputMode === 'doodle' && (
             <div className="min-h-[300px] bg-slate-800/40 border-2 border-slate-700/50 rounded-3xl flex flex-col items-center justify-center">
               <Palette className="w-16 h-16 text-purple-400 mb-4" />
               <p className="text-slate-400">Draw your emotions</p>

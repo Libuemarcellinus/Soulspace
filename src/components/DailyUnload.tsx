@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Send, Sparkles, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles, RefreshCw, Meh } from 'lucide-react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
-import { dailyApi } from '../lib/api';
+import { dailyApi, moodsApi, soulsApi } from '../lib/api';
+import { useApi } from '../hooks/useApi';
+import { mockMoods, mapApiMood } from '../lib/mockData';
 
 interface DailyUnloadProps {
   navigateTo: (screen: string) => void;
@@ -25,6 +27,12 @@ export default function DailyUnload({ navigateTo }: DailyUnloadProps) {
   const [currentPrompt, setCurrentPrompt] = useState(localPrompts[0]);
   const [response, setResponse] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedMoodLabel, setSelectedMoodLabel] = useState<string | null>(null);
+
+  const { data: rawMoods, isLoading: moodsLoading } = useApi(() => moodsApi.getActive(), []);
+  const apiMoods = Array.isArray(rawMoods) && rawMoods.length > 0 ? rawMoods : null;
+  const moods = (apiMoods ?? mockMoods).map(mapApiMood);
+  const selectedMood = moods.find(m => m.label === selectedMoodLabel) ?? null;
 
   useEffect(() => {
     dailyApi.getPrompt()
@@ -53,25 +61,26 @@ export default function DailyUnload({ navigateTo }: DailyUnloadProps) {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!response.trim()) { navigateTo('home'); return; }
+    if (promptId) {
+      try { await dailyApi.submit(promptId, response.trim()); } catch { /* silent */ }
+    }
     navigateTo('home');
   };
 
   const handleShare = async () => {
-    if (!response.trim()) return;
+    if (!response.trim() || !selectedMood) return;
     setIsSubmitting(true);
     try {
-      await dailyApi.submit(promptId ?? 'local', response.trim(), 'public');
+      if (promptId) {
+        await dailyApi.submit(promptId, response.trim()).catch(() => {});
+      }
+      await soulsApi.create(response.trim(), selectedMood.id);
       navigateTo('home');
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
-      if (/404|not found/i.test(msg)) {
-        toast('This feature is coming soon', {
-          description: 'Daily submissions aren\'t available yet. Check back later.',
-        });
-      } else {
-        navigateTo('home');
-      }
+      toast.error(msg || 'Something went wrong. Try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -162,11 +171,43 @@ export default function DailyUnload({ navigateTo }: DailyUnloadProps) {
           />
         </motion.div>
 
-        {/* Action Buttons */}
+        {/* Mood Picker */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
+          className="mb-6"
+        >
+          <label className="block text-slate-300 mb-3 text-sm">
+            How are you feeling right now?
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            {moods.map((mood) => {
+              const Icon = mood.icon ?? Meh;
+              return (
+                <motion.button
+                  key={mood.id}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setSelectedMoodLabel(mood.label)}
+                  className={`p-4 rounded-2xl border-2 transition-all ${
+                    selectedMoodLabel === mood.label
+                      ? mood.color
+                      : 'bg-slate-800/40 text-slate-400 border-slate-700/50 hover:border-slate-600/50'
+                  }`}
+                >
+                  <Icon className="w-6 h-6 mx-auto mb-2" />
+                  <span className="text-sm">{mood.label}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Action Buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
           className="flex gap-4"
         >
           <Button
@@ -178,11 +219,11 @@ export default function DailyUnload({ navigateTo }: DailyUnloadProps) {
           </Button>
           <Button
             onClick={handleShare}
-            disabled={!response.trim() || isSubmitting}
+            disabled={!response.trim() || !selectedMood || isSubmitting || moodsLoading}
             className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50"
           >
             <Send className="w-4 h-4 mr-2" />
-            {isSubmitting ? 'Sharing…' : 'Share with Souls'}
+            {isSubmitting ? 'Sharing…' : moodsLoading ? 'Loading moods…' : 'Share with Souls'}
           </Button>
         </motion.div>
 
@@ -190,7 +231,7 @@ export default function DailyUnload({ navigateTo }: DailyUnloadProps) {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.5 }}
           className="mt-6 p-4 bg-slate-800/20 border border-slate-700/30 rounded-2xl"
         >
           <p className="text-slate-400 text-sm text-center">

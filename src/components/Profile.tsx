@@ -23,16 +23,35 @@ const badges = [
 
 export default function Profile({ navigateTo }: ProfileProps) {
   const { user } = useAuth();
-  const { data: rawSouls, isLoading, error } = useApi(() => soulsApi.getPrivate(), []);
+  const { data: rawSouls, isLoading, error } = useApi(() => soulsApi.getMySouls(), []);
   const { data: rawCircles, isLoading: circlesLoading } = useApi(() => circlesApi.myCircles(), []);
   const { data: profileData } = useApi(() => authApi.profile(), []);
   const isFallback = !isLoading && error !== null;
   const mySouls = Array.isArray(rawSouls) ? rawSouls.map(mapApiSoul) : [];
   const myCircles = Array.isArray(rawCircles) ? rawCircles.map((c, i) => mapApiCircle(c, i)) : [];
-  const soulsCount = profileData?.souls_count;
-  const repliesCount = profileData?.replies_count;
+  const soulsCount = profileData?.souls;
+  const repliesCount = profileData?.replies;
   const daysActive = profileData?.days_active;
-  const apiBadges = Array.isArray(profileData?.badges) ? profileData.badges : null;
+  const streaks = profileData?.streaks;
+
+  const BADGE_MAP = [
+    { key: 'kind_soul',     name: 'Kind Soul',     icon: '💜', description: 'Shared empathy 100 times' },
+    { key: 'night_owl',     name: 'Night Owl',     icon: '🌙', description: 'Posted during late hours' },
+    { key: 'listener',      name: 'Listener',      icon: '👂', description: 'Replied to 50 souls' },
+    { key: 'vulnerable',    name: 'Vulnerable',    icon: '🌸', description: 'Share 10 deep thoughts' },
+    { key: 'circle_leader', name: 'Circle Leader', icon: '⭐', description: 'Active in 5 circles' },
+    { key: 'healer',        name: 'Healer',        icon: '✨', description: 'Help 1000 souls' },
+  ] as const;
+
+  const apiBadges = profileData?.badges && typeof profileData.badges === 'object' && !Array.isArray(profileData.badges)
+    ? BADGE_MAP.map(b => ({
+        id: b.key,
+        name: b.name,
+        icon: b.icon,
+        description: b.description,
+        earned: !!(profileData.badges as Record<string, boolean>)[b.key],
+      }))
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 pb-24">
@@ -129,7 +148,7 @@ export default function Profile({ navigateTo }: ProfileProps) {
             </div>
             <div className="flex items-center gap-2">
               <Flame className="w-8 h-8 text-orange-400" />
-              <span className="text-3xl text-orange-400">{daysActive ?? '--'}</span>
+              <span className="text-3xl text-orange-400">{streaks ?? '--'}</span>
             </div>
           </div>
         </motion.div>

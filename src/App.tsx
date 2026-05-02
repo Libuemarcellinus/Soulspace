@@ -37,11 +37,6 @@ export default function App() {
   const [selectedCircle, setSelectedCircle] = useState<any>(null);
   const auth = useAuth();
 
-  // Fire a background request on mount so the Render backend wakes up during the splash delay
-  useEffect(() => {
-    soulsApi.getActive(1, 1).catch(() => {});
-  }, []);
-
   // Admin access via URL hash — navigate to localhost:3000/#admin
   useEffect(() => {
     if (window.location.hash === '#admin') {

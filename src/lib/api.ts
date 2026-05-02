@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-production.up.railway.app/api/';
 
 function getToken(): string | null {
   return localStorage.getItem('soulspace_token');
@@ -86,14 +86,20 @@ export interface AuthResponse {
 export interface ApiProfile {
   username?: string;
   user_id?: string;
-  mood?: string;
-  mood_icon?: string;
-  blur_preview?: boolean;
-  push_notifications?: boolean;
-  badges?: ApiBadge[];
-  souls_count?: number;
-  replies_count?: number;
+  souls?: number;
+  replies?: number;
   days_active?: number;
+  streaks?: number;
+  mood?: { mood: string; icon: string };
+  settings?: { blur_preview?: boolean; push_notifications?: boolean };
+  badges?: {
+    kind_soul?: boolean;
+    night_owl?: boolean;
+    listener?: boolean;
+    vulnerable?: boolean;
+    circle_leader?: boolean;
+    healer?: boolean;
+  };
 }
 
 export interface ApiBadge {
@@ -116,6 +122,13 @@ export interface ApiReply {
 export interface ApiDailyPrompt {
   id: string;
   prompt: string;
+}
+
+export interface ApiPromptResponse {
+  id: string;
+  prompt?: string;
+  response: string;
+  created_at?: string;
 }
 
 export interface ApiMood {
@@ -180,7 +193,10 @@ export const authApi = {
       body: JSON.stringify({ username, password, ...(fcm ? { fcm } : {}) }),
     }),
   logout: () => request<void>('auth/logout', { method: 'POST' }),
-  profile: () => request<ApiProfile>('auth/profile'),
+  profile: () =>
+    request<{ data?: ApiProfile } & ApiProfile>('auth/profile').then(r =>
+      (r as any)?.data ?? r
+    ),
   refresh: () => request<AuthResponse>('auth/refresh'),
   updateSettings: (settings: { blur_preview?: boolean; push_notifications?: boolean }) =>
     request<void>('auth/settings', {
@@ -292,12 +308,21 @@ export const soulsApi = {
 // ── Daily ──────────────────────────────────────────────────────────────────
 
 export const dailyApi = {
-  getPrompt: () => request<ApiDailyPrompt>('daily/prompt'),
-  submit: (prompt_id: string, content: string, visibility: 'private' | 'public') =>
-    request<void>('daily/submit', {
+  getPrompt: () => request<ApiDailyPrompt>('auth/prompt'),
+  submit: (prompt_id: string, response: string) =>
+    request<void>(`auth/prompt?id=${prompt_id}`, {
       method: 'POST',
-      body: JSON.stringify({ prompt_id, content, visibility }),
+      body: JSON.stringify({ response }),
     }),
+  getResponses: () =>
+    request<unknown>('auth/response').then(d => {
+      if (Array.isArray(d)) return d as ApiPromptResponse[];
+      const obj = d as Record<string, unknown>;
+      if (typeof obj?.response === 'string') {
+        return [{ id: 'daily-response', response: obj.response }] as ApiPromptResponse[];
+      }
+      return unwrapList<ApiPromptResponse>(d, 'responses', 'prompts', 'prompt_responses');
+    }).catch(() => [] as ApiPromptResponse[]),
 };
 
 // ── Circles ────────────────────────────────────────────────────────────────
@@ -336,22 +361,54 @@ export const adminApi = {
     }),
   getAllCircles: () =>
     adminRequest<unknown>('admin/all_circles').then(d => unwrapList(d, 'circles')),
-  createCircle: (circle: string, icon: string) =>
+  createCircle: (circle: string, icon: string, description?: string) =>
     adminRequest<void>('admin/create_circle', {
       method: 'POST',
-      body: JSON.stringify({ circle, icon }),
+      body: JSON.stringify({ circle, icon, ...(description ? { description } : {}) }),
     }),
   setCircleStatus: (id: string, status: boolean) =>
     adminRequest<void>(`admin/circle_status?id=${id}&status=${status}`, { method: 'PATCH' }),
   getAllMoods: () =>
     adminRequest<unknown>('admin/all_moods').then(d => unwrapList(d, 'moods')),
-  createMood: (mood: string, icon: string) =>
+  createMood: (mood: string, icon: string, color?: string) =>
     adminRequest<void>('admin/create_mood', {
       method: 'POST',
-      body: JSON.stringify({ mood, icon }),
+      body: JSON.stringify({ mood, icon, ...(color ? { color } : {}) }),
     }),
   setMoodStatus: (id: string, status: number) =>
     adminRequest<void>(`admin/mood_status?id=${id}&status=${status}`, { method: 'PATCH' }),
   getBlockedUsers: () =>
     adminRequest<unknown>('admin/all_blocked').then(d => unwrapList(d, 'users')),
+  getDeletedSouls: () =>
+    adminRequest<unknown>('admin/deleted').then(d => unwrapList(d, 'souls')),
+  getInactiveSouls: () =>
+    adminRequest<unknown>('admin/inactive').then(d => unwrapList(d, 'souls')),
+  blockUser: (id: string) =>
+    adminRequest<void>('admin/block', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    }),
+  unblockUser: (id: string) =>
+    adminRequest<void>('admin/unblock', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    }),
+  getUser: (id: string) =>
+    adminRequest<ApiProfile>(`admin/user?id=${id}`),
+  getDailyPrompts: () =>
+    adminRequest<unknown>('admin/daily_prompt').then(d => unwrapList(d, 'prompts', 'data')),
+  createDailyPrompt: (prompt: string) =>
+    adminRequest<void>('admin/daily_prompt', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    }),
+  editDailyPrompt: (id: string, prompt: string) =>
+    adminRequest<void>(`admin/daily_prompt?id=${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ prompt }),
+    }),
+  setDailyPromptStatus: (id: string, status: boolean) =>
+    adminRequest<void>(`admin/daily_prompt?id=${id}&status=${status}`, { method: 'PATCH' }),
+  deleteDailyPrompt: (id: string) =>
+    adminRequest<void>(`admin/daily_prompt?id=${id}`, { method: 'DELETE' }),
 };

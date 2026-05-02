@@ -266,8 +266,8 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
                 <motion.div
                   className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
                   initial={{ width: '100%' }}
-                  animate={{ width: '60%' }}
-                  transition={{ duration: 2 }}
+                  animate={{ width: `${post.expiryPercent}%` }}
+                  transition={{ duration: 1.5, ease: 'easeOut' }}
                 />
               </div>
               <span className="text-slate-500 text-xs">expires in {post.expiresIn}</span>
