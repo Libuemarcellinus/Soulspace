@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Heart, MessageCircle, Flag, Ghost, Clock, MessageSquare, Share2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { soulsApi } from '../lib/api';
+import { mapApiSoul } from '../lib/mockData';
 import { isLiked, persistLike, revertLike } from '../lib/likeStorage';
 import { toast } from 'sonner';
 
@@ -19,6 +20,8 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [reported, setReported] = useState(false);
   const [replyLikes, setReplyLikes] = useState<Record<string, number>>({});
+  const [fetchedPost, setFetchedPost] = useState<any>(null);
+  const [isFetchingPost, setIsFetchingPost] = useState(false);
 
   const { data: rawReplies, isLoading: repliesLoading, error: repliesError } = useApi(
     () => soulsApi.getReplies(post?.id),
@@ -28,10 +31,37 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
     /404|not found/i.test(repliesError.message ?? '');
   const replies = Array.isArray(rawReplies) ? rawReplies : [];
 
+  useEffect(() => {
+    if (!post?.content && post?.id) {
+      setIsFetchingPost(true);
+      soulsApi.getSoul(post.id)
+        .then(raw => {
+          const mapped = mapApiSoul(raw);
+          setFetchedPost(mapped);
+          setEmpathyCount(mapped.empathy);
+        })
+        .catch(() => {})
+        .finally(() => setIsFetchingPost(false));
+    }
+  }, [post?.id]);
+
   if (!post) {
     navigateTo('home');
     return null;
   }
+
+  if (isFetchingPost) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center">
+        <div className="space-y-4 w-full max-w-2xl px-4">
+          <div className="h-8 w-32 bg-slate-700 rounded-xl animate-pulse" />
+          <div className="h-48 bg-slate-800/40 rounded-3xl animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  const p = fetchedPost ?? post;
 
   const handleLike = async () => {
     const alreadyLiked = liked;
@@ -71,7 +101,7 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
   };
 
   const handleShare = async () => {
-    const text = `"${post.content}"\n\n— shared anonymously on SoulSpace · expires in 24h`;
+    const text = `"${p.content}"\n\n— shared anonymously on SoulSpace · expires in 24h`;
     if (navigator.share) {
       try {
         await navigator.share({ title: 'SoulSpace', text });
@@ -151,18 +181,18 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Ghost className={`w-5 h-5 ${post.moodColor}`} />
-              <Badge variant="outline" className={`${post.moodColor} border-current/30 bg-current/10`}>
-                {post.mood}
+              <Ghost className={`w-5 h-5 ${p.moodColor}`} />
+              <Badge variant="outline" className={`${p.moodColor} border-current/30 bg-current/10`}>
+                {p.mood}
               </Badge>
             </div>
             <div className="flex items-center gap-2 text-slate-500 text-sm">
               <Clock className="w-3 h-3" />
-              <span>{post.timestamp}</span>
+              <span>{p.timestamp}</span>
             </div>
           </div>
 
-          <p className="text-slate-200 text-lg leading-relaxed mb-6">{post.content}</p>
+          <p className="text-slate-200 text-lg leading-relaxed mb-6">{p.content}</p>
 
           <div className="flex items-center gap-2 mb-6">
             <div className="flex-1 h-1 bg-slate-700/50 rounded-full overflow-hidden">
@@ -173,7 +203,7 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
                 transition={{ duration: 2 }}
               />
             </div>
-            <span className="text-slate-500 text-xs">expires in {post.expiresIn}</span>
+            <span className="text-slate-500 text-xs">expires in {p.expiresIn}</span>
           </div>
 
           <div className="flex items-center gap-6">
@@ -192,7 +222,7 @@ export default function PostDetail({ post, navigateTo }: PostDetailProps) {
               className="flex items-center gap-2 text-purple-400"
             >
               <MessageCircle className="w-5 h-5" />
-              <span>{post.replies}</span>
+              <span>{p.replies}</span>
             </button>
             <button
               onClick={handleShare}

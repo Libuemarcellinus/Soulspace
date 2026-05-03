@@ -37,6 +37,7 @@ export default function AdminMoods() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [iconEmoji, setIconEmoji] = useState('');
+  const [colorValue, setColorValue] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
@@ -74,11 +75,12 @@ export default function AdminMoods() {
     try {
       const res = await adminRequest('admin/create_mood', {
         method: 'POST',
-        body: JSON.stringify({ mood: newName, icon: iconEmoji }),
+        body: JSON.stringify({ mood: newName, icon: iconEmoji, color: colorValue }),
       });
       if (res.ok) {
         setNewName('');
         setIconEmoji('');
+        setColorValue('');
         setCreateError('');
         setIsCreateOpen(false);
         await fetchMoods();
@@ -185,6 +187,12 @@ export default function AdminMoods() {
                 <Input placeholder="e.g. 😊" value={iconEmoji}
                   onChange={e => setIconEmoji(e.target.value)}
                   className="bg-slate-900/50 border-slate-700/50 text-slate-100 text-2xl" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-300">Color (hex, optional)</Label>
+                <Input placeholder="e.g. FFFF00" value={colorValue}
+                  onChange={e => setColorValue(e.target.value)}
+                  className="bg-slate-900/50 border-slate-700/50 text-slate-100" />
               </div>
               {createError && <p className="text-red-400 text-sm">{createError}</p>}
               <Button onClick={handleCreate} disabled={!newName || !iconEmoji || isCreating}

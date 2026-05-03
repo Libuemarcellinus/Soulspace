@@ -24,11 +24,12 @@ import AdminSouls from './admin/AdminSouls';
 import AdminCircles from './admin/AdminCircles';
 import AdminMoods from './admin/AdminMoods';
 import AdminUsers from './admin/AdminUsers';
+import AdminDailyPrompts from './admin/AdminDailyPrompts';
 import { useAuth } from './context/AuthContext';
 
 const ADMIN_SCREENS = [
   'admin-login', 'admin-dashboard', 'admin-souls',
-  'admin-circles', 'admin-moods', 'admin-users',
+  'admin-circles', 'admin-moods', 'admin-users', 'admin-prompts',
 ];
 
 export default function App() {
@@ -76,6 +77,8 @@ export default function App() {
         return <AdminLayout navigateTo={navigateTo} currentScreen="admin-moods"><AdminMoods /></AdminLayout>;
       case 'admin-users':
         return <AdminLayout navigateTo={navigateTo} currentScreen="admin-users"><AdminUsers /></AdminLayout>;
+      case 'admin-prompts':
+        return <AdminLayout navigateTo={navigateTo} currentScreen="admin-prompts"><AdminDailyPrompts /></AdminLayout>;
       default:
         return null;
     }

@@ -6,6 +6,7 @@ import {
   Circle,
   Smile,
   Users,
+  FileText,
   LogOut,
   Menu,
   X,
@@ -24,6 +25,7 @@ const navItems = [
   { id: 'admin-circles',   label: 'Circles',   icon: Circle },
   { id: 'admin-moods',     label: 'Moods',     icon: Smile },
   { id: 'admin-users',     label: 'Users',     icon: Users },
+  { id: 'admin-prompts',   label: 'Prompts',   icon: FileText },
 ];
 
 function useIsDesktop() {
