@@ -57,16 +57,20 @@ export default function AdminSouls() {
   const [allSouls, setAllSouls] = useState<Soul[]>([]);
   const [reportedSouls, setReportedSouls] = useState<Soul[]>([]);
   const [removedSouls, setRemovedSouls] = useState<Soul[]>([]);
+  const [deletedSouls, setDeletedSouls] = useState<Soul[]>([]);
+  const [inactiveSouls, setInactiveSouls] = useState<Soul[]>([]);
   const [removing, setRemoving] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
   async function fetchAll() {
     setIsLoading(true);
     try {
-      const [allRes, repRes, remRes] = await Promise.allSettled([
+      const [allRes, repRes, remRes, delRes, inactRes] = await Promise.allSettled([
         adminRequest('admin/all'),
         adminRequest('admin/reported'),
         adminRequest('admin/removed'),
+        adminRequest('admin/deleted'),
+        adminRequest('admin/inactive'),
       ]);
       if (allRes.status === 'fulfilled' && allRes.value.ok) {
         const d = await allRes.value.json();
@@ -79,6 +83,14 @@ export default function AdminSouls() {
       if (remRes.status === 'fulfilled' && remRes.value.ok) {
         const d = await remRes.value.json();
         setRemovedSouls(Array.isArray(d) ? d : d.data || d.souls || []);
+      }
+      if (delRes.status === 'fulfilled' && delRes.value.ok) {
+        const d = await delRes.value.json();
+        setDeletedSouls(Array.isArray(d) ? d : d.data || d.souls || []);
+      }
+      if (inactRes.status === 'fulfilled' && inactRes.value.ok) {
+        const d = await inactRes.value.json();
+        setInactiveSouls(Array.isArray(d) ? d : d.data || d.souls || []);
       }
     } catch { /* silent */ } finally {
       setIsLoading(false);
@@ -176,15 +188,21 @@ export default function AdminSouls() {
       </motion.div>
 
       <Tabs defaultValue="all" className="w-full">
-        <TabsList className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-1">
-          <TabsTrigger value="all" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+        <TabsList className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 p-1 flex flex-wrap h-auto gap-1">
+          <TabsTrigger value="all" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 text-xs">
             All ({allSouls.length})
           </TabsTrigger>
-          <TabsTrigger value="reported" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+          <TabsTrigger value="reported" className="data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-300 text-xs">
             Reported ({reportedSouls.length})
           </TabsTrigger>
-          <TabsTrigger value="removed" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+          <TabsTrigger value="removed" className="data-[state=active]:bg-red-500/20 data-[state=active]:text-red-300 text-xs">
             Removed ({removedSouls.length})
+          </TabsTrigger>
+          <TabsTrigger value="deleted" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300 text-xs">
+            Deleted ({deletedSouls.length})
+          </TabsTrigger>
+          <TabsTrigger value="inactive" className="data-[state=active]:bg-slate-500/20 data-[state=active]:text-slate-300 text-xs">
+            Inactive ({inactiveSouls.length})
           </TabsTrigger>
         </TabsList>
 
@@ -194,7 +212,7 @@ export default function AdminSouls() {
             : <div className="space-y-3">
                 {allSouls.map((soul, i) => (
                   <motion.div key={soul.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                    <SoulCard soul={soul} />
+                    <SoulCard soul={soul} showRemove />
                   </motion.div>
                 ))}
               </div>
@@ -236,6 +254,45 @@ export default function AdminSouls() {
                     </motion.div>
                   );
                 })}
+              </div>
+          }
+        </TabsContent>
+
+        <TabsContent value="deleted" className="mt-6">
+          {deletedSouls.length === 0
+            ? <Empty emoji="✅" title="No deleted souls" sub="Souls deleted by users will appear here" />
+            : <div className="space-y-3">
+                {deletedSouls.map((soul, i) => {
+                  const moodName = soul.mood?.mood || 'Other';
+                  const gradient = getMoodGradient(moodName);
+                  return (
+                    <motion.div key={soul.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                      className="bg-slate-800/40 backdrop-blur-xl border border-orange-600/30 rounded-xl p-4 opacity-60">
+                      <div className="flex items-start gap-3">
+                        <span className={`px-3 py-1 rounded-full text-xs bg-gradient-to-r ${gradient} bg-clip-text text-transparent font-medium border border-slate-600/30 whitespace-nowrap flex-shrink-0`}>
+                          {moodName}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-slate-400 text-sm mb-1 line-through line-clamp-2">{soul.soul}</p>
+                          <p className="text-slate-500 text-xs">{timeAgo(soul.created_at)}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+          }
+        </TabsContent>
+
+        <TabsContent value="inactive" className="mt-6">
+          {inactiveSouls.length === 0
+            ? <Empty emoji="💤" title="No inactive souls" sub="Expired souls will appear here" />
+            : <div className="space-y-3">
+                {inactiveSouls.map((soul, i) => (
+                  <motion.div key={soul.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+                    <SoulCard soul={soul} />
+                  </motion.div>
+                ))}
               </div>
           }
         </TabsContent>

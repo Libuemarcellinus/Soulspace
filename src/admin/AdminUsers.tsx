@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { UserX, AlertCircle } from 'lucide-react';
+import { UserX, AlertCircle, ShieldOff } from 'lucide-react';
 import { Skeleton } from '../components/ui/skeleton';
+import { Button } from '../components/ui/button';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
 
-function adminRequest(path: string) {
+function adminRequest(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('soulspace_admin_token');
   return fetch(`${BASE_URL}${path}`, {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
     },
   });
 }
@@ -38,6 +41,7 @@ interface BlockedUser {
 export default function AdminUsers() {
   const [isLoading, setIsLoading] = useState(true);
   const [users, setUsers] = useState<BlockedUser[]>([]);
+  const [unblocking, setUnblocking] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -53,6 +57,24 @@ export default function AdminUsers() {
     }
     load();
   }, []);
+
+  const handleUnblock = async (user: BlockedUser) => {
+    setUnblocking(user.id);
+    setUsers(prev => prev.filter(u => u.id !== user.id));
+    try {
+      const res = await adminRequest('admin/unblock', {
+        method: 'POST',
+        body: JSON.stringify({ id: user.id }),
+      });
+      if (!res.ok) {
+        setUsers(prev => [...prev, user]);
+      }
+    } catch {
+      setUsers(prev => [...prev, user]);
+    } finally {
+      setUnblocking(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -98,7 +120,18 @@ export default function AdminUsers() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-4 mb-2">
                       <h3 className="text-slate-100">{displayName}</h3>
-                      <span className="text-slate-500 text-sm whitespace-nowrap">{timeAgo(date)}</span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-slate-500 text-sm whitespace-nowrap">{timeAgo(date)}</span>
+                        <Button
+                          size="sm"
+                          onClick={() => handleUnblock(user)}
+                          disabled={unblocking === user.id}
+                          className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs px-2 h-7"
+                        >
+                          <ShieldOff className="h-3 w-3 mr-1" />
+                          {unblocking === user.id ? '...' : 'Unblock'}
+                        </Button>
+                      </div>
                     </div>
                     {user.reason && (
                       <div className="flex items-start gap-2">
