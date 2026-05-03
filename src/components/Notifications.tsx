@@ -24,8 +24,8 @@ function timeAgo(iso: string): string {
 }
 
 function NotifIcon({ type }: { type?: string }) {
-  if (type === 'reply' || type === 'echo') return <MessageCircle className="w-4 h-4 text-purple-400" />;
-  if (type === 'like' || type === 'empathy') return <Heart className="w-4 h-4 text-pink-400" />;
+  if (type === 'soul_reply') return <MessageCircle className="w-4 h-4 text-purple-400" />;
+  if (type === 'soul_like' || type === 'soul_unlike') return <Heart className="w-4 h-4 text-pink-400" />;
   return <Bell className="w-4 h-4 text-slate-400" />;
 }
 
@@ -192,10 +192,12 @@ export default function Notifications({ navigateTo }: NotificationsProps) {
                   className="flex-1 text-left min-w-0"
                   onClick={() => handleClick(notif)}
                 >
-                  <p className={`text-sm leading-snug mb-1 ${notif.read ? 'text-slate-400' : 'text-slate-200'}`}>
+                  <p className={`text-sm leading-snug ${notif.created_at ? 'mb-1' : ''} ${notif.read ? 'text-slate-400' : 'text-slate-200'}`}>
                     {notif.message}
                   </p>
-                  <p className="text-xs text-slate-600">{timeAgo(notif.created_at)}</p>
+                  {timeAgo(notif.created_at) && (
+                    <p className="text-xs text-slate-600">{timeAgo(notif.created_at)}</p>
+                  )}
                 </button>
 
                 {/* Unread dot + delete */}

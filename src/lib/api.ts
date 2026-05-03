@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-production.up.railway.app/api/';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
 
 function getToken(): string | null {
   return localStorage.getItem('soulspace_token');
@@ -268,12 +268,12 @@ export const moodsApi = {
 
 function normalizeNotification(raw: Record<string, unknown>): ApiNotification {
   return {
-    id: (raw.id ?? raw.notification_id ?? '') as string,
-    type: (raw.type ?? raw.notification_type) as string | undefined,
-    message: (raw.message ?? raw.notification ?? raw.text ?? raw.body ?? raw.content ?? '') as string,
-    read: Boolean(raw.read ?? raw.is_read ?? raw.seen ?? false),
-    created_at: (raw.created_at ?? raw.createdAt ?? raw.timestamp ?? raw.date ?? '') as string,
-    soul_id: (raw.soul_id ?? raw.soulId ?? raw.post_id) as string | undefined,
+    id: (raw.notification_id ?? raw.id ?? '') as string,
+    type: (raw.notification_type ?? raw.type) as string | undefined,
+    message: (raw.notification ?? raw.message ?? '') as string,
+    read: Boolean(raw.is_read ?? raw.read ?? false),
+    created_at: (raw.created_at ?? '') as string,
+    soul_id: (raw.soul_id ?? raw.soulId) as string | undefined,
   };
 }
 

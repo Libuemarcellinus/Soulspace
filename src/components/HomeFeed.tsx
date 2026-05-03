@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { Ghost, Plus, Compass, User, TrendingUp, MessageCircle, Heart, Clock, ChevronDown, Bell } from 'lucide-react';
-import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useApi } from '../hooks/useApi';
 import { soulsApi, notificationsApi } from '../lib/api';
@@ -175,28 +174,28 @@ export default function HomeFeed({ navigateTo }: HomeFeedProps) {
               </motion.div>
               <h1 className="text-slate-100">SoulFeed</h1>
             </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative text-slate-400 hover:text-purple-400"
+            <div className="flex items-center gap-3">
+              <button
                 onClick={() => navigateTo('notifications')}
+                className="text-slate-400 hover:text-purple-400 transition-colors"
+                style={{ position: 'relative' }}
               >
-                <Bell className="w-5 h-5" />
+                <Bell className="w-6 h-6" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-purple-500 text-white text-[10px] rounded-full flex items-center justify-center leading-none">
+                  <span
+                    style={{ position: 'absolute', top: '-8px', right: '-8px', minWidth: '18px', height: '18px', zIndex: 10 }}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-white text-xs flex items-center justify-center font-bold px-1"
+                  >
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-slate-400 hover:text-purple-400"
+              </button>
+              <button
                 onClick={() => navigateTo('mood-pulse')}
+                className="text-slate-400 hover:text-purple-400 transition-colors"
               >
-                <TrendingUp className="w-5 h-5" />
-              </Button>
+                <TrendingUp className="w-6 h-6" />
+              </button>
             </div>
           </div>
         </div>
