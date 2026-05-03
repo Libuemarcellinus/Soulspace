@@ -25,7 +25,6 @@ import AdminCircles from './admin/AdminCircles';
 import AdminMoods from './admin/AdminMoods';
 import AdminUsers from './admin/AdminUsers';
 import { useAuth } from './context/AuthContext';
-import { soulsApi } from './lib/api';
 
 const ADMIN_SCREENS = [
   'admin-login', 'admin-dashboard', 'admin-souls',

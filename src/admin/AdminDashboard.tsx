@@ -4,7 +4,7 @@ import { MessageSquare, AlertCircle, Trash2, Circle, Smile, UserX } from 'lucide
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Skeleton } from '../components/ui/skeleton';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-production.up.railway.app/api/';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://soulspace-ye8o.onrender.com/api/';
 
 function adminRequest(path: string) {
   const token = localStorage.getItem('soulspace_admin_token');
