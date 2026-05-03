@@ -16,7 +16,13 @@ function adminRequest(path: string, options: RequestInit = {}) {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  return fetch(`${BASE_URL}${path}`, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  return fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers: { ...headers, ...(options.headers || {}) },
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timer));
 }
 
 interface Circle {
@@ -34,6 +40,7 @@ export default function AdminCircles() {
   const [newName, setNewName] = useState('');
   const [iconEmoji, setIconEmoji] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   async function fetchCircles() {
     try {
@@ -63,6 +70,7 @@ export default function AdminCircles() {
   const handleCreate = async () => {
     if (!newName || !iconEmoji) return;
     setIsCreating(true);
+    setCreateError('');
     try {
       const res = await adminRequest('admin/create_circle', {
         method: 'POST',
@@ -71,10 +79,17 @@ export default function AdminCircles() {
       if (res.ok) {
         setNewName('');
         setIconEmoji('');
+        setCreateError('');
         setIsCreateOpen(false);
         await fetchCircles();
+      } else {
+        const text = await res.text().catch(() => '');
+        const msg = text ? (JSON.parse(text).message || JSON.parse(text).error) : '';
+        setCreateError(msg || `Failed (${res.status})`);
       }
-    } catch { /* silent */ } finally {
+    } catch (err) {
+      setCreateError(err instanceof Error && err.name === 'AbortError' ? 'Request timed out.' : 'Network error.');
+    } finally {
       setIsCreating(false);
     }
   };
@@ -124,6 +139,9 @@ export default function AdminCircles() {
                   onChange={e => setIconEmoji(e.target.value)}
                   className="bg-slate-900/50 border-slate-700/50 text-slate-100 text-2xl" />
               </div>
+              {createError && (
+                <p className="text-red-400 text-sm">{createError}</p>
+              )}
               <Button onClick={handleCreate} disabled={!newName || !iconEmoji || isCreating}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 disabled:opacity-50">
                 {isCreating ? 'Creating...' : 'Create Circle'}
