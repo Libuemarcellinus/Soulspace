@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, X } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Skeleton } from '../components/ui/skeleton';
@@ -116,39 +115,12 @@ export default function AdminCircles() {
           <p className="text-slate-400">Manage community circles</p>
         </div>
 
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
-              <Plus className="h-4 w-4 mr-2" /> Create Circle
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-slate-800/95 backdrop-blur-xl border-slate-700/50 text-slate-100">
-            <DialogHeader>
-              <DialogTitle>Create New Circle</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Circle Name</Label>
-                <Input placeholder="e.g., Night Thoughts" value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  className="bg-slate-900/50 border-slate-700/50 text-slate-100" />
-              </div>
-              <div className="space-y-2">
-                <Label>Circle Icon (emoji)</Label>
-                <Input placeholder="e.g. ⭕" value={iconEmoji}
-                  onChange={e => setIconEmoji(e.target.value)}
-                  className="bg-slate-900/50 border-slate-700/50 text-slate-100 text-2xl" />
-              </div>
-              {createError && (
-                <p className="text-red-400 text-sm">{createError}</p>
-              )}
-              <Button onClick={handleCreate} disabled={!newName || !iconEmoji || isCreating}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 disabled:opacity-50">
-                {isCreating ? 'Creating...' : 'Create Circle'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button
+          onClick={() => { setIsCreateOpen(true); setCreateError(''); }}
+          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+        >
+          <Plus className="h-4 w-4 mr-2" /> Create Circle
+        </Button>
       </motion.div>
 
       {circles.length === 0 ? (
@@ -192,6 +164,38 @@ export default function AdminCircles() {
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+      {isCreateOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" onClick={() => setIsCreateOpen(false)}>
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative bg-slate-800 border border-slate-700/50 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-slate-100 text-xl font-semibold">Create New Circle</h2>
+              <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-200">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-slate-300">Circle Name</Label>
+                <Input placeholder="e.g., Night Thoughts" value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  className="bg-slate-900/50 border-slate-700/50 text-slate-100" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-300">Circle Icon (emoji)</Label>
+                <Input placeholder="e.g. ⭕" value={iconEmoji}
+                  onChange={e => setIconEmoji(e.target.value)}
+                  className="bg-slate-900/50 border-slate-700/50 text-slate-100 text-2xl" />
+              </div>
+              {createError && <p className="text-red-400 text-sm">{createError}</p>}
+              <Button onClick={handleCreate} disabled={!newName || !iconEmoji || isCreating}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 disabled:opacity-50">
+                {isCreating ? 'Creating...' : 'Create Circle'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
