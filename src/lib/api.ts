@@ -160,6 +160,7 @@ export interface ApiMood {
   mood_id?: string;
   mood: string;
   mood_icon?: string;
+  color?: string;
   status?: string;
 }
 

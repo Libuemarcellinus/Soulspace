@@ -28,9 +28,12 @@ interface Circle {
   id: string;
   circle: string;
   icon: string;
-  status: boolean;
+  status: boolean | number | string;
   member_count?: number;
 }
+
+const isActive = (c: Circle) =>
+  c.status === true || c.status === 1 || c.status === '1' || c.status === 'active' || c.status === 'true';
 
 export default function AdminCircles() {
   const [isLoading, setIsLoading] = useState(true);
@@ -57,10 +60,10 @@ export default function AdminCircles() {
   useEffect(() => { fetchCircles(); }, []);
 
   const toggleStatus = async (circle: Circle) => {
-    const newStatus = !circle.status;
+    const newStatus = !isActive(circle);
     setCircles(prev => prev.map(c => c.id === circle.id ? { ...c, status: newStatus } : c));
     try {
-      await adminRequest(`admin/circle_status?id=${circle.id}&status=${newStatus}`, { method: 'PATCH' });
+      await adminRequest(`admin/circle_status?id=${circle.id}&status=${newStatus ? 1 : 0}`, { method: 'PATCH' });
     } catch {
       setCircles(prev => prev.map(c => c.id === circle.id ? { ...c, status: circle.status } : c));
     }
@@ -131,39 +134,42 @@ export default function AdminCircles() {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {circles.map((circle, index) => (
-            <motion.div key={circle.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.04 }}
-              className={`bg-slate-800/40 backdrop-blur-xl border rounded-2xl p-6 transition-all ${
-                circle.status ? 'border-slate-700/50 hover:border-slate-600/50' : 'border-slate-700/30 opacity-60'
-              }`}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-2xl overflow-hidden">
-                  {circle.icon?.startsWith('http')
-                    ? <img src={circle.icon} alt={circle.circle} className="w-full h-full object-cover rounded-xl" />
-                    : circle.icon || '⭕'
-                  }
+          {circles.map((circle, index) => {
+            const active = isActive(circle);
+            return (
+              <motion.div key={circle.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.04 }}
+                className={`bg-slate-800/40 backdrop-blur-xl border rounded-2xl p-6 transition-all ${
+                  active ? 'border-slate-700/50 hover:border-slate-600/50' : 'border-slate-700/30 opacity-60'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-3xl overflow-hidden">
+                    {circle.icon?.startsWith('http')
+                      ? <img src={circle.icon} alt={circle.circle} className="w-full h-full object-cover rounded-xl" />
+                      : <span>{circle.icon || '⭕'}</span>
+                    }
+                  </div>
+                  <Switch checked={active} onCheckedChange={() => toggleStatus(circle)} />
                 </div>
-                <Switch checked={circle.status} onCheckedChange={() => toggleStatus(circle)} />
-              </div>
-              <h3 className="text-slate-100 mb-2 line-clamp-1">{circle.circle}</h3>
-              {circle.member_count !== undefined && (
-                <p className="text-slate-400 text-sm flex items-center gap-1">
-                  <Users className="h-3 w-3" />{circle.member_count.toLocaleString()}
-                </p>
-              )}
-              <div className="mt-3">
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  circle.status ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-600/20 text-slate-400'
-                }`}>
-                  {circle.status ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-            </motion.div>
-          ))}
+                <h3 className="text-slate-100 mb-2 line-clamp-1">{circle.circle}</h3>
+                {circle.member_count !== undefined && (
+                  <p className="text-slate-400 text-sm flex items-center gap-1">
+                    <Users className="h-3 w-3" />{circle.member_count.toLocaleString()}
+                  </p>
+                )}
+                <div className="mt-3">
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-600/20 text-slate-400'
+                  }`}>
+                    {active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       )}
       {isCreateOpen && (

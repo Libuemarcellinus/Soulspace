@@ -160,12 +160,23 @@ const moodTextColorMap: Record<string, string> = {
   cool: 'text-cyan-400',
 };
 
+function makeEmojiIcon(emoji: string): ComponentType<any> {
+  return ({ className }: { className?: string }) =>
+    React.createElement('span', {
+      className,
+      style: { fontSize: '1.3rem', lineHeight: 1, display: 'inline-block' },
+    }, emoji);
+}
+
 export function mapApiMood(m: ApiMood) {
   const key = m.mood.toLowerCase();
+  const icon = m.mood_icon
+    ? makeEmojiIcon(m.mood_icon)
+    : (moodIconMap[key] ?? Meh);
   return {
     id: m.mood_id ?? m.id ?? '',
     label: m.mood,
-    icon: moodIconMap[key] ?? Meh,
+    icon,
     color: moodColorMap[key] ?? 'bg-slate-500/20 text-slate-400 border-slate-500/30',
   };
 }
@@ -287,12 +298,13 @@ export function mapApiCircle(circle: ApiCircle, index: number) {
   const style = circleStyleMap[circle.circle] ?? defaultCircleStyles[index % defaultCircleStyles.length];
   const memberCount = circle.member_count ?? 0;
 
-  // Server sends a Cloudinary image URL; wrap it as a renderable component
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const IconComponent: ComponentType<any> = circle.icon?.startsWith('http')
     ? ({ className }: { className?: string }) =>
         React.createElement('img', { src: circle.icon, alt: circle.circle, className: `rounded-full object-cover w-full h-full ${className ?? ''}` })
-    : style.icon;
+    : circle.icon
+      ? makeEmojiIcon(circle.icon)
+      : style.icon;
 
   return {
     id: circle.circle_id ?? circle.id ?? '',

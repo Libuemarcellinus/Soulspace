@@ -28,7 +28,8 @@ interface Mood {
   id: string;
   mood: string;
   mood_icon: string;
-  status: boolean | number;
+  color?: string;
+  status: boolean | number | string;
 }
 
 export default function AdminMoods() {
@@ -56,7 +57,8 @@ export default function AdminMoods() {
 
   useEffect(() => { fetchMoods(); }, []);
 
-  const isActive = (mood: Mood) => mood.status === true || mood.status === 1;
+  const isActive = (mood: Mood) =>
+    mood.status === true || mood.status === 1 || mood.status === '1' || mood.status === 'active' || mood.status === 'true';
 
   const toggleStatus = async (mood: Mood) => {
     const newStatus = !isActive(mood);
@@ -72,10 +74,13 @@ export default function AdminMoods() {
     if (!newName || !iconEmoji) return;
     setIsCreating(true);
     setCreateError('');
+    const cleanColor = colorValue.replace(/^#/, '').trim();
+    const body: Record<string, string> = { mood: newName, icon: iconEmoji };
+    if (cleanColor) body.color = cleanColor;
     try {
       const res = await adminRequest('admin/create_mood', {
         method: 'POST',
-        body: JSON.stringify({ mood: newName, icon: iconEmoji, color: colorValue }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         setNewName('');
@@ -146,10 +151,13 @@ export default function AdminMoods() {
                 }`}
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center overflow-hidden">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden text-3xl"
+                    style={{ backgroundColor: mood.color ? `#${mood.color}33` : 'rgba(168,85,247,0.1)' }}
+                  >
                     {mood.mood_icon?.startsWith('http')
                       ? <img src={mood.mood_icon} alt={mood.mood} className="w-full h-full object-contain" />
-                      : <span className="text-3xl">{mood.mood_icon}</span>
+                      : <span>{mood.mood_icon}</span>
                     }
                   </div>
                   <Switch checked={active} onCheckedChange={() => toggleStatus(mood)} />
@@ -189,7 +197,7 @@ export default function AdminMoods() {
                   className="bg-slate-900/50 border-slate-700/50 text-slate-100 text-2xl" />
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-300">Color (hex, optional)</Label>
+                <Label className="text-slate-300">Color hex (optional, no #)</Label>
                 <Input placeholder="e.g. FFFF00" value={colorValue}
                   onChange={e => setColorValue(e.target.value)}
                   className="bg-slate-900/50 border-slate-700/50 text-slate-100" />
