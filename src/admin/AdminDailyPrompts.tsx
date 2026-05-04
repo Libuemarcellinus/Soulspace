@@ -27,7 +27,7 @@ function adminRequest(path: string, options: RequestInit = {}) {
 interface Prompt {
   id: string;
   prompt: string;
-  status: boolean | number;
+  status: boolean | number | string;
 }
 
 export default function AdminDailyPrompts() {
@@ -58,7 +58,8 @@ export default function AdminDailyPrompts() {
 
   useEffect(() => { fetchPrompts(); }, []);
 
-  const isActive = (p: Prompt) => p.status === true || p.status === 1;
+  const isActive = (p: Prompt) =>
+    p.status === true || p.status === 1 || p.status === '1' || p.status === 'active' || p.status === 'true';
 
   const toggleStatus = async (p: Prompt) => {
     const newStatus = !isActive(p);

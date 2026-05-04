@@ -74,7 +74,10 @@ export default function AdminMoods() {
     const newStatus = !isActive(mood);
     setMoods(prev => prev.map(m => m.id === mood.id ? { ...m, status: newStatus } : m));
     try {
-      await adminRequest(`admin/mood_status?id=${mood.id}&status=${newStatus ? 1 : 0}`, { method: 'PATCH' });
+      const res = await adminRequest(`admin/mood_status?id=${mood.id}&status=${newStatus}`, { method: 'PATCH' });
+      if (!res.ok) {
+        setMoods(prev => prev.map(m => m.id === mood.id ? { ...m, status: mood.status } : m));
+      }
     } catch {
       setMoods(prev => prev.map(m => m.id === mood.id ? { ...m, status: mood.status } : m));
     }

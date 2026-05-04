@@ -72,7 +72,10 @@ export default function AdminCircles() {
     const newStatus = !isActive(circle);
     setCircles(prev => prev.map(c => c.id === circle.id ? { ...c, status: newStatus } : c));
     try {
-      await adminRequest(`admin/circle_status?id=${circle.id}&status=${newStatus ? 1 : 0}`, { method: 'PATCH' });
+      const res = await adminRequest(`admin/circle_status?id=${circle.id}&status=${newStatus}`, { method: 'PATCH' });
+      if (!res.ok) {
+        setCircles(prev => prev.map(c => c.id === circle.id ? { ...c, status: circle.status } : c));
+      }
     } catch {
       setCircles(prev => prev.map(c => c.id === circle.id ? { ...c, status: circle.status } : c));
     }
