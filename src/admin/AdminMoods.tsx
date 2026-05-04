@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Pencil } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Input } from '../components/ui/input';
@@ -35,12 +35,22 @@ interface Mood {
 export default function AdminMoods() {
   const [isLoading, setIsLoading] = useState(true);
   const [moods, setMoods] = useState<Mood[]>([]);
+
+  // create state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [iconEmoji, setIconEmoji] = useState('');
   const [colorValue, setColorValue] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+
+  // edit state
+  const [editTarget, setEditTarget] = useState<Mood | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editIcon, setEditIcon] = useState('');
+  const [editColor, setEditColor] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState('');
 
   async function fetchMoods() {
     try {
@@ -70,6 +80,48 @@ export default function AdminMoods() {
     }
   };
 
+  const openEdit = (mood: Mood) => {
+    setEditTarget(mood);
+    setEditName(mood.mood);
+    setEditIcon(mood.mood_icon);
+    setEditColor(mood.color ?? '');
+    setEditError('');
+  };
+
+  const handleEdit = async () => {
+    if (!editTarget || !editName || !editIcon) return;
+    setIsSaving(true);
+    setEditError('');
+    const cleanColor = editColor.replace(/^#/, '').trim();
+    const body: Record<string, string> = { mood: editName, icon: editIcon };
+    if (cleanColor) body.color = cleanColor;
+    // ⚠️  UPDATE THIS ENDPOINT when backend adds edit_mood support
+    // Expected: PUT admin/edit_mood?id={id}  body: { mood, icon, color? }
+    try {
+      const res = await adminRequest(`admin/edit_mood?id=${editTarget.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setMoods(prev => prev.map(m =>
+          m.id === editTarget.id
+            ? { ...m, mood: editName, mood_icon: editIcon, color: cleanColor || m.color }
+            : m
+        ));
+        setEditTarget(null);
+      } else {
+        const text = await res.text().catch(() => '');
+        let msg = '';
+        try { const j = JSON.parse(text); msg = j.message || j.error || ''; } catch { /* silent */ }
+        setEditError(msg || `Failed (${res.status})`);
+      }
+    } catch (err) {
+      setEditError(err instanceof Error && err.name === 'AbortError' ? 'Request timed out.' : 'Network error.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleCreate = async () => {
     if (!newName || !iconEmoji) return;
     setIsCreating(true);
@@ -91,7 +143,8 @@ export default function AdminMoods() {
         await fetchMoods();
       } else {
         const text = await res.text().catch(() => '');
-        const msg = text ? (JSON.parse(text).message || JSON.parse(text).error) : '';
+        let msg = '';
+        try { const j = JSON.parse(text); msg = j.message || j.error || ''; } catch { /* silent */ }
         setCreateError(msg || `Failed (${res.status})`);
       }
     } catch (err) {
@@ -122,7 +175,6 @@ export default function AdminMoods() {
           <h1 className="text-slate-100 text-3xl mb-2">Moods</h1>
           <p className="text-slate-400">Manage available mood tags</p>
         </div>
-
         <Button
           onClick={() => { setIsCreateOpen(true); setCreateError(''); }}
           className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
@@ -163,16 +215,27 @@ export default function AdminMoods() {
                   <Switch checked={active} onCheckedChange={() => toggleStatus(mood)} />
                 </div>
                 <h3 className="text-slate-100 mb-3">{mood.mood}</h3>
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-600/20 text-slate-400'
-                }`}>
-                  {active ? 'Active' : 'Inactive'}
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-600/20 text-slate-400'
+                  }`}>
+                    {active ? 'Active' : 'Inactive'}
+                  </span>
+                  <button
+                    onClick={() => openEdit(mood)}
+                    className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded-lg hover:bg-slate-700/40"
+                    title="Edit mood"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </motion.div>
             );
           })}
         </div>
       )}
+
+      {/* Create Modal */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" onClick={() => setIsCreateOpen(false)}>
           <div className="absolute inset-0 bg-black/60" />
@@ -206,6 +269,46 @@ export default function AdminMoods() {
               <Button onClick={handleCreate} disabled={!newName || !iconEmoji || isCreating}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 disabled:opacity-50">
                 {isCreating ? 'Creating...' : 'Create Mood'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" onClick={() => setEditTarget(null)}>
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative bg-slate-800 border border-slate-700/50 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-slate-100 text-xl font-semibold">Edit Mood</h2>
+              <button onClick={() => setEditTarget(null)} className="text-slate-400 hover:text-slate-200">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-slate-300">Mood Name</Label>
+                <Input value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="bg-slate-900/50 border-slate-700/50 text-slate-100" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-300">Mood Icon (emoji)</Label>
+                <Input value={editIcon}
+                  onChange={e => setEditIcon(e.target.value)}
+                  className="bg-slate-900/50 border-slate-700/50 text-slate-100 text-2xl" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-300">Color hex (optional, no #)</Label>
+                <Input placeholder="e.g. FFFF00" value={editColor}
+                  onChange={e => setEditColor(e.target.value)}
+                  className="bg-slate-900/50 border-slate-700/50 text-slate-100" />
+              </div>
+              {editError && <p className="text-red-400 text-sm">{editError}</p>}
+              <Button onClick={handleEdit} disabled={!editName || !editIcon || isSaving}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 disabled:opacity-50">
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </div>

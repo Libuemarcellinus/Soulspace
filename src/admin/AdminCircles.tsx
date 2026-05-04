@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Plus, Users, X } from 'lucide-react';
+import { Plus, Users, X, Pencil } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Input } from '../components/ui/input';
@@ -38,11 +38,20 @@ const isActive = (c: Circle) =>
 export default function AdminCircles() {
   const [isLoading, setIsLoading] = useState(true);
   const [circles, setCircles] = useState<Circle[]>([]);
+
+  // create state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [iconEmoji, setIconEmoji] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+
+  // edit state
+  const [editTarget, setEditTarget] = useState<Circle | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editIcon, setEditIcon] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState('');
 
   async function fetchCircles() {
     try {
@@ -69,6 +78,42 @@ export default function AdminCircles() {
     }
   };
 
+  const openEdit = (circle: Circle) => {
+    setEditTarget(circle);
+    setEditName(circle.circle);
+    setEditIcon(circle.icon);
+    setEditError('');
+  };
+
+  const handleEdit = async () => {
+    if (!editTarget || !editName || !editIcon) return;
+    setIsSaving(true);
+    setEditError('');
+    // ⚠️  UPDATE THIS ENDPOINT when backend adds edit_circle support
+    // Expected: PUT admin/edit_circle?id={id}  body: { circle, icon }
+    try {
+      const res = await adminRequest(`admin/edit_circle?id=${editTarget.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ circle: editName, icon: editIcon }),
+      });
+      if (res.ok) {
+        setCircles(prev => prev.map(c =>
+          c.id === editTarget.id ? { ...c, circle: editName, icon: editIcon } : c
+        ));
+        setEditTarget(null);
+      } else {
+        const text = await res.text().catch(() => '');
+        let msg = '';
+        try { const j = JSON.parse(text); msg = j.message || j.error || ''; } catch { /* silent */ }
+        setEditError(msg || `Failed (${res.status})`);
+      }
+    } catch (err) {
+      setEditError(err instanceof Error && err.name === 'AbortError' ? 'Request timed out.' : 'Network error.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleCreate = async () => {
     if (!newName || !iconEmoji) return;
     setIsCreating(true);
@@ -86,7 +131,8 @@ export default function AdminCircles() {
         await fetchCircles();
       } else {
         const text = await res.text().catch(() => '');
-        const msg = text ? (JSON.parse(text).message || JSON.parse(text).error) : '';
+        let msg = '';
+        try { const j = JSON.parse(text); msg = j.message || j.error || ''; } catch { /* silent */ }
         setCreateError(msg || `Failed (${res.status})`);
       }
     } catch (err) {
@@ -117,7 +163,6 @@ export default function AdminCircles() {
           <h1 className="text-slate-100 text-3xl mb-2">Circles</h1>
           <p className="text-slate-400">Manage community circles</p>
         </div>
-
         <Button
           onClick={() => { setIsCreateOpen(true); setCreateError(''); }}
           className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
@@ -160,18 +205,27 @@ export default function AdminCircles() {
                     <Users className="h-3 w-3" />{circle.member_count.toLocaleString()}
                   </p>
                 )}
-                <div className="mt-3">
+                <div className="mt-3 flex items-center justify-between">
                   <span className={`text-xs px-2 py-1 rounded-full ${
                     active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-600/20 text-slate-400'
                   }`}>
                     {active ? 'Active' : 'Inactive'}
                   </span>
+                  <button
+                    onClick={() => openEdit(circle)}
+                    className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded-lg hover:bg-slate-700/40"
+                    title="Edit circle"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </motion.div>
             );
           })}
         </div>
       )}
+
+      {/* Create Modal */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" onClick={() => setIsCreateOpen(false)}>
           <div className="absolute inset-0 bg-black/60" />
@@ -199,6 +253,40 @@ export default function AdminCircles() {
               <Button onClick={handleCreate} disabled={!newName || !iconEmoji || isCreating}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 disabled:opacity-50">
                 {isCreating ? 'Creating...' : 'Create Circle'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" onClick={() => setEditTarget(null)}>
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative bg-slate-800 border border-slate-700/50 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-slate-100 text-xl font-semibold">Edit Circle</h2>
+              <button onClick={() => setEditTarget(null)} className="text-slate-400 hover:text-slate-200">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-slate-300">Circle Name</Label>
+                <Input value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="bg-slate-900/50 border-slate-700/50 text-slate-100" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-300">Circle Icon (emoji)</Label>
+                <Input value={editIcon}
+                  onChange={e => setEditIcon(e.target.value)}
+                  className="bg-slate-900/50 border-slate-700/50 text-slate-100 text-2xl" />
+              </div>
+              {editError && <p className="text-red-400 text-sm">{editError}</p>}
+              <Button onClick={handleEdit} disabled={!editName || !editIcon || isSaving}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 disabled:opacity-50">
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </div>
