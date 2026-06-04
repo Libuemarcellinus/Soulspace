@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del \"C:\\\\Users\\\\HP\\\\Documents\\\\All My Files\\\\Flenxy\\\\CodWeb\\\\NIIT\\\\Soulspace\\\\src\\\\components\\\\figma\\\\ImageWithFallback.tsx\")",
+      "Bash(node:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(npm run:*)",
+      "Bash(mkdir -p /tmp/soulspace_ref)",
+      "Bash(unzip -o \"SoulSpace Prototype Design - Highers version.zip\" -d /tmp/soulspace_ref)"
+    ]
+  }
+}
